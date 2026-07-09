@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from app.moderation.rules import check_message_rules
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
@@ -28,6 +29,12 @@ async def capture_message(message: Message):
     logging.warning(f"Guardando mensaje: {msg}")
     await save_message(msg)
     logging.warning("Mensaje guardado correctamente en PostgreSQL")
+
+    moderation = check_message_rules(msg.text)
+
+    if moderation.violated:
+        logging.warning(f"Moderación: {moderation.reason}")
+
 
 
 async def main():
