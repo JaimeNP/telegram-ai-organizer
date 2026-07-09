@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from app.moderation.rules import check_message_rules
+from app.services.duplicate_detector import detect_duplicate
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
@@ -29,6 +30,14 @@ async def capture_message(message: Message):
     logging.warning(f"Guardando mensaje: {msg}")
     await save_message(msg)
     logging.warning("Mensaje guardado correctamente en PostgreSQL")
+
+    duplicate = await detect_duplicate(msg)
+
+    if duplicate.is_duplicate:
+        logging.warning(
+            f"Duplicado detectado: {duplicate.similarity:.2%} "
+            f"parecido al mensaje {duplicate.original_message_id}"
+        )
 
     moderation = check_message_rules(msg.text)
 

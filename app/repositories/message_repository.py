@@ -1,3 +1,5 @@
+from sqlalchemy import desc, select
+
 from app.database.models import StoredMessage
 from app.database.session import AsyncSessionLocal
 from app.models.message import TelegramMessage
@@ -23,3 +25,19 @@ async def save_message(message: TelegramMessage) -> None:
 
         session.add(stored)
         await session.commit()
+
+
+async def get_recent_text_messages(
+    telegram_chat_id: int,
+    limit: int = 50,
+) -> list[StoredMessage]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredMessage)
+            .where(StoredMessage.telegram_chat_id == telegram_chat_id)
+            .where(StoredMessage.text.is_not(None))
+            .order_by(desc(StoredMessage.date))
+            .limit(limit)
+        )
+
+        return list(result.scalars().all())
