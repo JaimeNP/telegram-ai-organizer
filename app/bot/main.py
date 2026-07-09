@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from app.services.decision_engine import decide_for_message
 from app.moderation.rules import check_message_rules
 from app.services.duplicate_detector import detect_duplicate
 
@@ -31,18 +32,12 @@ async def capture_message(message: Message):
     await save_message(msg)
     logging.warning("Mensaje guardado correctamente en PostgreSQL")
 
-    duplicate = await detect_duplicate(msg)
+    decision = await decide_for_message(msg)
 
-    if duplicate.is_duplicate:
-        logging.warning(
-            f"Duplicado detectado: {duplicate.similarity:.2%} "
-            f"parecido al mensaje {duplicate.original_message_id}"
-        )
-
-    moderation = check_message_rules(msg.text)
-
-    if moderation.violated:
-        logging.warning(f"Moderación: {moderation.reason}")
+    logging.warning(
+        f"Decisión simulada: action={decision.action}, "
+        f"confidence={decision.confidence:.2%}, reason={decision.reason}"
+    )
 
 
 
