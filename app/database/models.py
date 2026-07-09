@@ -32,3 +32,22 @@ class StoredMessage(Base):
     reply_to_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class StoredDecision(Base):
+    __tablename__ = "decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    telegram_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    telegram_message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(nullable=False)
+    simulated: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from app.repositories.decision_repository import save_decision
 from app.services.decision_engine import decide_for_message
 from app.moderation.rules import check_message_rules
 from app.services.duplicate_detector import detect_duplicate
@@ -33,6 +34,7 @@ async def capture_message(message: Message):
     logging.warning("Mensaje guardado correctamente en PostgreSQL")
 
     decision = await decide_for_message(msg)
+    await save_decision(msg, decision)
 
     logging.warning(
         f"Decisión simulada: action={decision.action}, "
