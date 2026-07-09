@@ -2,11 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml .
+COPY . /app
 
-RUN pip install --upgrade pip && \
-    pip install aiogram python-dotenv
+RUN pip install --upgrade pip
+RUN pip install aiogram python-dotenv sqlalchemy asyncpg
 
-COPY . .
-
-CMD ["python", "app/bot/main.py"]
+CMD ["python", "-m", "app.bot.main"]

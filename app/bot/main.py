@@ -1,33 +1,39 @@
 import asyncio
 import logging
-import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.config.settings import BOT_TOKEN
+from app.database.init_db import init_db
+from app.repositories.message_repository import save_message
+from app.services.message_parser import parse_message
 
 logging.basicConfig(level=logging.INFO)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    raise RuntimeError("No se ha encontrado BOT_TOKEN en el archivo .env")
-
-bot = Bot(BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 
 @dp.message(CommandStart())
-async def start(message: Message):
-    await message.answer(
-        "🤖 TAIO está funcionando correctamente."
-    )
+async def cmd_start(message: Message):
+    await message.answer("🤖 TAIO está funcionando correctamente.")
+
+
+@dp.message()
+async def capture_message(message: Message):
+    msg = parse_message(message)
+
+    logging.warning(f"Guardando mensaje: {msg}")
+    await save_message(msg)
+    logging.warning("Mensaje guardado correctamente en PostgreSQL")
 
 
 async def main():
+    logging.info("Inicializando base de datos...")
+    await init_db()
+
     logging.info("Iniciando TAIO...")
     await dp.start_polling(bot)
 
