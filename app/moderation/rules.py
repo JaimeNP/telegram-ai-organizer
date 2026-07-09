@@ -1,6 +1,22 @@
 from dataclasses import dataclass
 
 
+BANNED_WORDS = {
+    "gilipollas",
+    "imbécil",
+    "imbecil",
+    "idiota",
+    "subnormal",
+    "estúpido",
+    "estupido",
+    "cabrón",
+    "cabron",
+    "hijo de puta",
+    "puta",
+    "mierda",
+}
+
+
 @dataclass
 class ModerationResult:
     violated: bool
@@ -24,7 +40,29 @@ def is_mostly_uppercase(text: str | None) -> bool:
     return ratio >= 0.8
 
 
+def contains_banned_word(text: str | None) -> str | None:
+    if not text:
+        return None
+
+    normalized = text.lower()
+
+    for word in BANNED_WORDS:
+        if word in normalized:
+            return word
+
+    return None
+
+
 def check_message_rules(text: str | None) -> ModerationResult:
+    banned_word = contains_banned_word(text)
+
+    if banned_word:
+        return ModerationResult(
+            violated=True,
+            reason="El mensaje contiene lenguaje ofensivo.",
+            severity="high",
+        )
+
     if is_mostly_uppercase(text):
         return ModerationResult(
             violated=True,
