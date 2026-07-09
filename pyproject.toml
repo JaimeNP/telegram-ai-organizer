@@ -1,0 +1,14 @@
+[project]
+name = "taio"
+version = "0.1.0"
+description = "Telegram AI Organizer"
+requires-python = ">=3.12"
+
+dependencies = [
+    "aiogram>=3.20.0",
+    "python-dotenv>=1.0.1",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
