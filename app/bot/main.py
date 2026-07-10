@@ -26,6 +26,7 @@ from app.services.action_executor import execute_decision
 from app.repositories.topic_repository import get_topic_name, save_topic_name
 from app.repositories.stats_repository import (
     get_basic_stats,
+    get_decision_action_stats,
     get_recent_decisions_with_messages,
     get_topic_stats,
 )
@@ -52,6 +53,7 @@ async def cmd_adminhelp(message: Message):
         "/status - Ver configuración actual del bot\n"
         "/readiness - Comprobar si está seguro para grupo grande\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
+        "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions - Ver últimas decisiones simuladas\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/topics - Ver Topics detectados por TAIO\n"
@@ -136,6 +138,27 @@ async def cmd_stats(message: Message):
         f"Mensajes guardados: {stats['messages']}\n"
         f"Decisiones guardadas: {stats['decisions']}"
     )
+
+@dp.message(Command("decisionstats"))
+async def cmd_decisionstats(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar el resumen de decisiones de TAIO.")
+        return
+
+    stats = await get_decision_action_stats()
+
+    if not stats:
+        await message.answer("TAIO todavía no tiene decisiones guardadas.")
+        return
+
+    lines = ["📈 Resumen de decisiones de TAIO\n"]
+
+    for item in stats:
+        lines.append(
+            f"{item['action']}: {item['count']}"
+        )
+
+    await message.answer("\n".join(lines))
 
 @dp.message(Command("decisions"))
 async def cmd_decisions(message: Message):

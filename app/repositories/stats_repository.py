@@ -78,3 +78,24 @@ async def get_recent_decisions_with_messages(limit: int = 5) -> list[dict]:
             }
             for row in rows
         ]
+
+async def get_decision_action_stats() -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(
+                StoredDecision.action,
+                func.count(StoredDecision.id),
+            )
+            .group_by(StoredDecision.action)
+            .order_by(StoredDecision.action)
+        )
+
+        rows = result.all()
+
+        return [
+            {
+                "action": row[0],
+                "count": row[1],
+            }
+            for row in rows
+        ]
