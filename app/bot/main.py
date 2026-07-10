@@ -23,11 +23,13 @@ from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
+from app.repositories.topic_repository import get_topic_name, save_topic_name
 from app.repositories.stats_repository import (
     get_basic_stats,
     get_recent_decisions_with_messages,
     get_topic_stats,
 )
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -199,13 +201,49 @@ async def cmd_topics(message: Message):
     lines = ["🧵 Topics detectados por TAIO\n"]
 
     for topic in topics:
+        topic_name = await get_topic_name(message.chat.id, topic["thread_id"])
+        display_name = topic_name or f"Topic {topic['thread_id']}"
+
         lines.append(
+            f"Nombre: {display_name}\n"
             f"Thread ID: {topic['thread_id']}\n"
             f"Mensajes guardados: {topic['messages']}\n"
             f"Último mensaje: {topic['last_message_at']}\n"
         )
 
     await message.answer("\n".join(lines))
+
+@dp.message(Command("settopic"))
+async def cmd_settopic(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para configurar Topics en TAIO.")
+        return
+
+    if message.message_thread_id is None:
+        await message.answer(
+            "Este comando debe usarse dentro de un Topic, no en General ni en privado."
+        )
+        return
+
+    parts = (message.text or "").split(maxsplit=1)
+
+    if len(parts) < 2 or not parts[1].strip():
+        await message.answer("Uso correcto: /settopic Nombre del Topic")
+        return
+
+    topic_name = parts[1].strip()
+
+    await save_topic_name(
+        telegram_chat_id=message.chat.id,
+        thread_id=message.message_thread_id,
+        name=topic_name,
+    )
+
+    await message.answer(
+        f"✅ Topic guardado en TAIO\n\n"
+        f"Thread ID: {message.message_thread_id}\n"
+        f"Nombre: {topic_name}"
+    )
 
 @dp.message()
 async def capture_message(message: Message):
