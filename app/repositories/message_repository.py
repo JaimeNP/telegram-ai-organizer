@@ -41,3 +41,19 @@ async def get_recent_text_messages(
         )
 
         return list(result.scalars().all())
+    
+async def get_recent_topic_text_messages(
+    telegram_chat_id: int,
+    limit: int = 100,
+) -> list[StoredMessage]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredMessage)
+            .where(StoredMessage.telegram_chat_id == telegram_chat_id)
+            .where(StoredMessage.thread_id.is_not(None))
+            .where(StoredMessage.text.is_not(None))
+            .order_by(desc(StoredMessage.date))
+            .limit(limit)
+        )
+
+        return list(result.scalars().all())
