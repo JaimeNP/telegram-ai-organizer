@@ -57,5 +57,24 @@ if _raw_allowed_chat_ids:
     }
 
 
+_raw_admin_user_ids = os.getenv("ADMIN_USER_IDS", "").strip()
+
+ADMIN_USER_IDS: set[int] = set()
+
+if _raw_admin_user_ids:
+    ADMIN_USER_IDS = {
+        int(user_id.strip())
+        for user_id in _raw_admin_user_ids.split(",")
+        if user_id.strip()
+    }
+
+
 def is_allowed_chat(chat_id: int) -> bool:
     return chat_id in ALLOWED_CHAT_IDS
+
+
+def is_admin_user(user_id: int | None) -> bool:
+    if user_id is None:
+        return False
+
+    return user_id in ADMIN_USER_IDS

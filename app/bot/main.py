@@ -13,6 +13,7 @@ from app.config.settings import (
     ENABLE_PRIVATE_NOTICES,
     ENABLE_REPOSTS,
     SIMULATION_MODE,
+    is_admin_user,
     is_allowed_chat,
 )
 from app.database.init_db import init_db
@@ -34,6 +35,10 @@ async def cmd_start(message: Message):
 
 @dp.message(Command("status"))
 async def cmd_status(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar el estado de TAIO.")
+        return
+
     allowed_chats = ", ".join(str(chat_id) for chat_id in ALLOWED_CHAT_IDS) or "ninguno"
 
     await message.answer(
