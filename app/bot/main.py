@@ -145,13 +145,19 @@ async def cmd_decisionstats(message: Message):
         await message.answer("No tienes permiso para consultar el resumen de decisiones de TAIO.")
         return
 
-    stats = await get_decision_action_stats()
+    telegram_chat_id = None if message.chat.type == "private" else message.chat.id
+
+    stats = await get_decision_action_stats(
+        telegram_chat_id=telegram_chat_id,
+    )
 
     if not stats:
         await message.answer("TAIO todavía no tiene decisiones guardadas.")
         return
 
-    lines = ["📈 Resumen de decisiones de TAIO\n"]
+    scope = "todos los chats" if telegram_chat_id is None else f"chat {telegram_chat_id}"
+
+    lines = [f"📈 Resumen de decisiones de TAIO\n\nÁmbito: {scope}\n"]
 
     for item in stats:
         lines.append(

@@ -79,9 +79,11 @@ async def get_recent_decisions_with_messages(limit: int = 5) -> list[dict]:
             for row in rows
         ]
 
-async def get_decision_action_stats() -> list[dict]:
+async def get_decision_action_stats(
+    telegram_chat_id: int | None = None,
+) -> list[dict]:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
+        query = (
             select(
                 StoredDecision.action,
                 func.count(StoredDecision.id),
@@ -89,6 +91,11 @@ async def get_decision_action_stats() -> list[dict]:
             .group_by(StoredDecision.action)
             .order_by(StoredDecision.action)
         )
+
+        if telegram_chat_id is not None:
+            query = query.where(StoredDecision.telegram_chat_id == telegram_chat_id)
+
+        result = await session.execute(query)
 
         rows = result.all()
 
