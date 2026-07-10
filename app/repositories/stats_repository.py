@@ -4,14 +4,23 @@ from app.database.models import StoredDecision, StoredMessage
 from app.database.session import AsyncSessionLocal
 
 
-async def get_basic_stats() -> dict[str, int]:
+async def get_basic_stats(
+    telegram_chat_id: int | None = None,
+) -> dict[str, int]:
     async with AsyncSessionLocal() as session:
-        messages_result = await session.execute(
-            select(func.count()).select_from(StoredMessage)
-        )
-        decisions_result = await session.execute(
-            select(func.count()).select_from(StoredDecision)
-        )
+        messages_query = select(func.count()).select_from(StoredMessage)
+        decisions_query = select(func.count()).select_from(StoredDecision)
+
+        if telegram_chat_id is not None:
+            messages_query = messages_query.where(
+                StoredMessage.telegram_chat_id == telegram_chat_id
+            )
+            decisions_query = decisions_query.where(
+                StoredDecision.telegram_chat_id == telegram_chat_id
+            )
+
+        messages_result = await session.execute(messages_query)
+        decisions_result = await session.execute(decisions_query)
 
         return {
             "messages": messages_result.scalar_one(),

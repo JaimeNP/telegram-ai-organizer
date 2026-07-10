@@ -131,10 +131,17 @@ async def cmd_stats(message: Message):
         await message.answer("No tienes permiso para consultar las estadísticas de TAIO.")
         return
 
-    stats = await get_basic_stats()
+    telegram_chat_id = None if message.chat.type == "private" else message.chat.id
+
+    stats = await get_basic_stats(
+        telegram_chat_id=telegram_chat_id,
+    )
+
+    scope = "todos los chats" if telegram_chat_id is None else f"chat {telegram_chat_id}"
 
     await message.answer(
         "📊 Estadísticas de TAIO\n\n"
+        f"Ámbito: {scope}\n\n"
         f"Mensajes guardados: {stats['messages']}\n"
         f"Decisiones guardadas: {stats['decisions']}"
     )
