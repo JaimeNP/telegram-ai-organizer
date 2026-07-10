@@ -55,7 +55,7 @@ async def cmd_adminhelp(message: Message):
         "/health - Comprobar que bot y base de datos responden\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
-        "/decisions - Ver últimas decisiones simuladas\n"
+        "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -212,10 +212,23 @@ async def cmd_decisions(message: Message):
         await message.answer("No tienes permiso para consultar las decisiones de TAIO.")
         return
 
+    parts = (message.text or "").split(maxsplit=1)
+
+    limit = 5
+
+    if len(parts) > 1:
+        try:
+            limit = int(parts[1])
+        except ValueError:
+            await message.answer("Uso correcto: /decisions o /decisions 10")
+            return
+
+    limit = max(1, min(limit, 20))
+
     telegram_chat_id = None if message.chat.type == "private" else message.chat.id
 
     items = await get_recent_decisions_with_messages(
-        limit=5,
+        limit=limit,
         telegram_chat_id=telegram_chat_id,
     )
 
