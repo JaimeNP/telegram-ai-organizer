@@ -58,6 +58,7 @@ async def cmd_adminhelp(message: Message):
         "/decisions - Ver últimas decisiones simuladas\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
+        "/entrycheck - Comprobación final antes de observar un grupo\n"
         "/topics - Ver Topics detectados por TAIO\n"
         "/settopic Nombre - Guardar el nombre de un Topic\n"
         "/adminhelp - Ver esta ayuda\n\n"
@@ -277,6 +278,57 @@ async def cmd_chatcheck(message: Message):
         f"Thread ID: {message.message_thread_id}\n"
         f"Chat autorizado: {'✅' if chat_allowed else '❌'}\n"
         f"Usuario admin: {'✅' if admin_allowed else '❌'}"
+    )
+
+@dp.message(Command("entrycheck"))
+async def cmd_entrycheck(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para hacer la comprobación de entrada.")
+        return
+
+    safe_mode_ok = ACTION_MODE == "listen"
+    deletes_ok = not ENABLE_DELETES
+    reposts_ok = not ENABLE_REPOSTS
+    notices_ok = not ENABLE_PRIVATE_NOTICES
+    chat_allowed = is_allowed_chat(message.chat.id)
+    admin_allowed = is_admin_user(message.from_user.id if message.from_user else None)
+
+    try:
+        stats = await get_basic_stats()
+        database_ok = True
+    except Exception:
+        logging.exception("Error comprobando base de datos en entrycheck")
+        stats = {"messages": 0, "decisions": 0}
+        database_ok = False
+
+    ready = all(
+        [
+            safe_mode_ok,
+            deletes_ok,
+            reposts_ok,
+            notices_ok,
+            chat_allowed,
+            admin_allowed,
+            database_ok,
+        ]
+    )
+
+    await message.answer(
+        "🚦 Comprobación de entrada de TAIO\n\n"
+        f"Chat ID: {message.chat.id}\n"
+        f"Tipo de chat: {message.chat.type}\n"
+        f"Thread ID: {message.message_thread_id}\n\n"
+        f"Bot funcionando: ✅\n"
+        f"Base de datos responde: {'✅' if database_ok else '❌'}\n"
+        f"Chat autorizado: {'✅' if chat_allowed else '❌'}\n"
+        f"Usuario admin: {'✅' if admin_allowed else '❌'}\n"
+        f"Modo escucha activo: {'✅' if safe_mode_ok else '❌'}\n"
+        f"Borrados desactivados: {'✅' if deletes_ok else '❌'}\n"
+        f"Reenvíos desactivados: {'✅' if reposts_ok else '❌'}\n"
+        f"Avisos privados desactivados: {'✅' if notices_ok else '❌'}\n\n"
+        f"Mensajes guardados: {stats['messages']}\n"
+        f"Decisiones guardadas: {stats['decisions']}\n\n"
+        f"Resultado: {'✅ APTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO APTO TODAVÍA'}"
     )
 
 @dp.message(Command("topics"))
