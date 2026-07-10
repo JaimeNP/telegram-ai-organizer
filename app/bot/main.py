@@ -90,7 +90,9 @@ async def cmd_status(message: Message):
         f"Borrados habilitados: {ENABLE_DELETES}\n"
         f"Reenvíos habilitados: {ENABLE_REPOSTS}\n"
         f"Avisos privados habilitados: {ENABLE_PRIVATE_NOTICES}\n"
-        f"Chats autorizados: {allowed_chats}"
+        f"Chats autorizados: {allowed_chats}\n"
+        f"Número de chats autorizados: {len(ALLOWED_CHAT_IDS)}\n"
+        f"Número de admins configurados: {len(ADMIN_USER_IDS)}"
     )
 
 @dp.message(Command("readiness"))
