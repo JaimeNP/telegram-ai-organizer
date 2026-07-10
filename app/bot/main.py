@@ -25,7 +25,7 @@ from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
 from app.repositories.stats_repository import (
     get_basic_stats,
-    get_recent_decisions,
+    get_recent_decisions_with_messages,
     get_topic_stats,
 )
 
@@ -112,17 +112,35 @@ async def cmd_decisions(message: Message):
         await message.answer("No tienes permiso para consultar las decisiones de TAIO.")
         return
 
-    decisions = await get_recent_decisions(limit=5)
+    items = await get_recent_decisions_with_messages(limit=5)
 
-    if not decisions:
+    if not items:
         await message.answer("TAIO todavía no tiene decisiones guardadas.")
         return
 
     lines = ["🧠 Últimas decisiones de TAIO\n"]
 
-    for decision in decisions:
+    for item in items:
+        decision = item["decision"]
+        stored_message = item["message"]
+
+        if stored_message and stored_message.text:
+            text_preview = stored_message.text[:120]
+        else:
+            text_preview = "sin texto"
+
+        if stored_message:
+            thread_info = (
+                "General"
+                if stored_message.thread_id is None
+                else f"Topic {stored_message.thread_id}"
+            )
+        else:
+            thread_info = "desconocido"
+
         lines.append(
-            f"Mensaje {decision.telegram_message_id}\n"
+            f"Mensaje {decision.telegram_message_id} · {thread_info}\n"
+            f"Texto: {text_preview}\n"
             f"Acción: {decision.action}\n"
             f"Confianza: {decision.confidence:.2%}\n"
             f"Motivo: {decision.reason}\n"
