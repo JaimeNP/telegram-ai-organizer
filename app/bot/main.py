@@ -7,6 +7,7 @@ from aiogram.types import Message
 
 from app.config.settings import (
     ACTION_MODE,
+    ADMIN_USER_IDS,
     ALLOWED_CHAT_IDS,
     BOT_TOKEN,
     ENABLE_DELETES,
@@ -50,6 +51,41 @@ async def cmd_status(message: Message):
         f"Reenvíos habilitados: {ENABLE_REPOSTS}\n"
         f"Avisos privados habilitados: {ENABLE_PRIVATE_NOTICES}\n"
         f"Chats autorizados: {allowed_chats}"
+    )
+
+@dp.message(Command("readiness"))
+async def cmd_readiness(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar la preparación de TAIO.")
+        return
+
+    safe_mode_ok = ACTION_MODE == "listen"
+    deletes_ok = not ENABLE_DELETES
+    reposts_ok = not ENABLE_REPOSTS
+    notices_ok = not ENABLE_PRIVATE_NOTICES
+    allowed_chats_ok = bool(ALLOWED_CHAT_IDS)
+    admins_ok = bool(ADMIN_USER_IDS)
+
+    ready = all(
+        [
+            safe_mode_ok,
+            deletes_ok,
+            reposts_ok,
+            notices_ok,
+            allowed_chats_ok,
+            admins_ok,
+        ]
+    )
+
+    await message.answer(
+        "🛡️ Preparación de TAIO para grupo grande\n\n"
+        f"Modo escucha activo: {'✅' if safe_mode_ok else '❌'}\n"
+        f"Borrados desactivados: {'✅' if deletes_ok else '❌'}\n"
+        f"Reenvíos desactivados: {'✅' if reposts_ok else '❌'}\n"
+        f"Avisos privados desactivados: {'✅' if notices_ok else '❌'}\n"
+        f"Chats autorizados configurados: {'✅' if allowed_chats_ok else '❌'}\n"
+        f"Administradores configurados: {'✅' if admins_ok else '❌'}\n\n"
+        f"Resultado: {'✅ LISTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO LISTO'}"
     )
 
 @dp.message(Command("stats"))
