@@ -23,7 +23,11 @@ from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
-from app.repositories.stats_repository import get_basic_stats, get_recent_decisions
+from app.repositories.stats_repository import (
+    get_basic_stats,
+    get_recent_decisions,
+    get_topic_stats,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -139,6 +143,29 @@ async def cmd_whereami(message: Message):
         f"Thread ID: {message.message_thread_id}\n"
         f"Tu user ID: {message.from_user.id if message.from_user else 'desconocido'}"
     )
+
+@dp.message(Command("topics"))
+async def cmd_topics(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar los Topics de TAIO.")
+        return
+
+    topics = await get_topic_stats(message.chat.id)
+
+    if not topics:
+        await message.answer("TAIO todavía no tiene mensajes guardados en Topics.")
+        return
+
+    lines = ["🧵 Topics detectados por TAIO\n"]
+
+    for topic in topics:
+        lines.append(
+            f"Thread ID: {topic['thread_id']}\n"
+            f"Mensajes guardados: {topic['messages']}\n"
+            f"Último mensaje: {topic['last_message_at']}\n"
+        )
+
+    await message.answer("\n".join(lines))
 
 @dp.message()
 async def capture_message(message: Message):

@@ -28,3 +28,28 @@ async def get_recent_decisions(limit: int = 5) -> list[StoredDecision]:
         )
 
         return list(result.scalars().all())
+
+async def get_topic_stats(telegram_chat_id: int) -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(
+                StoredMessage.thread_id,
+                func.count(StoredMessage.id),
+                func.max(StoredMessage.date),
+            )
+            .where(StoredMessage.telegram_chat_id == telegram_chat_id)
+            .where(StoredMessage.thread_id.is_not(None))
+            .group_by(StoredMessage.thread_id)
+            .order_by(StoredMessage.thread_id)
+        )
+
+        rows = result.all()
+
+        return [
+            {
+                "thread_id": row[0],
+                "messages": row[1],
+                "last_message_at": row[2],
+            }
+            for row in rows
+        ]
