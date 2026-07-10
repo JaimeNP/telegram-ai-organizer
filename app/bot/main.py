@@ -313,8 +313,12 @@ async def cmd_entrycheck(message: Message):
     chat_allowed = is_allowed_chat(message.chat.id)
     admin_allowed = is_admin_user(message.from_user.id if message.from_user else None)
 
+    telegram_chat_id = None if message.chat.type == "private" else message.chat.id
+
     try:
-        stats = await get_basic_stats()
+        stats = await get_basic_stats(
+            telegram_chat_id=telegram_chat_id,
+        )
         database_ok = True
     except Exception:
         logging.exception("Error comprobando base de datos en entrycheck")
@@ -346,6 +350,7 @@ async def cmd_entrycheck(message: Message):
         f"Borrados desactivados: {'✅' if deletes_ok else '❌'}\n"
         f"Reenvíos desactivados: {'✅' if reposts_ok else '❌'}\n"
         f"Avisos privados desactivados: {'✅' if notices_ok else '❌'}\n\n"
+        f"Ámbito estadísticas: {'todos los chats' if telegram_chat_id is None else f'chat {telegram_chat_id}'}\n"
         f"Mensajes guardados: {stats['messages']}\n"
         f"Decisiones guardadas: {stats['decisions']}\n\n"
         f"Resultado: {'✅ APTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO APTO TODAVÍA'}"
