@@ -53,21 +53,27 @@ async def capture_message(message: Message):
         logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
         return
 
-    msg = parse_message(message)
+    try:
+        msg = parse_message(message)
 
-    logging.warning(f"Guardando mensaje: {msg}")
-    await save_message(msg)
-    logging.warning("Mensaje guardado correctamente en PostgreSQL")
+        logging.warning(f"Guardando mensaje: {msg}")
+        await save_message(msg)
+        logging.warning("Mensaje guardado correctamente en PostgreSQL")
 
-    decision = await decide_for_message(msg)
-    await save_decision(msg, decision)
-    await execute_decision(msg, decision)
+        decision = await decide_for_message(msg)
+        await save_decision(msg, decision)
+        await execute_decision(msg, decision)
 
-    logging.warning(
-        f"Decisión simulada: action={decision.action}, "
-        f"confidence={decision.confidence:.2%}, reason={decision.reason}"
-    )
+        logging.warning(
+            f"Decisión simulada: action={decision.action}, "
+            f"confidence={decision.confidence:.2%}, reason={decision.reason}"
+        )
 
+    except Exception:
+        logging.exception(
+            f"Error procesando mensaje de Telegram: "
+            f"chat_id={message.chat.id}, message_id={message.message_id}"
+        )
 
 async def main():
     logging.info("Inicializando base de datos...")
