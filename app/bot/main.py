@@ -22,7 +22,7 @@ from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
-from app.repositories.stats_repository import get_basic_stats
+from app.repositories.stats_repository import get_basic_stats, get_recent_decisions
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,6 +65,30 @@ async def cmd_stats(message: Message):
         f"Mensajes guardados: {stats['messages']}\n"
         f"Decisiones guardadas: {stats['decisions']}"
     )
+
+@dp.message(Command("decisions"))
+async def cmd_decisions(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar las decisiones de TAIO.")
+        return
+
+    decisions = await get_recent_decisions(limit=5)
+
+    if not decisions:
+        await message.answer("TAIO todavía no tiene decisiones guardadas.")
+        return
+
+    lines = ["🧠 Últimas decisiones de TAIO\n"]
+
+    for decision in decisions:
+        lines.append(
+            f"Mensaje {decision.telegram_message_id}\n"
+            f"Acción: {decision.action}\n"
+            f"Confianza: {decision.confidence:.2%}\n"
+            f"Motivo: {decision.reason}\n"
+        )
+
+    await message.answer("\n".join(lines))
 
 @dp.message(Command("whereami"))
 async def cmd_whereami(message: Message):
