@@ -334,7 +334,21 @@ async def capture_message(message: Message):
             f"chat={message.chat.id}, message={message.message_id}"
         )
         return
+    
+    has_useful_content = bool(
+        message.text
+        or message.caption
+        or message.photo
+        or message.video
+        or message.document
+    )
 
+    if not has_useful_content:
+        logging.info(
+            f"Mensaje sin contenido útil ignorado: "
+            f"chat={message.chat.id}, message={message.message_id}"
+        )
+        return
     if not is_allowed_chat(message.chat.id):
         logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
         return
