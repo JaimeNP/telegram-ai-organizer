@@ -296,6 +296,14 @@ async def capture_message(message: Message):
             f"chat={message.chat.id}, message={message.message_id}"
         )
         return
+
+    if message.from_user and message.from_user.is_bot:
+        logging.info(
+            f"Mensaje de bot ignorado: "
+            f"chat={message.chat.id}, message={message.message_id}"
+        )
+        return
+
     if not is_allowed_chat(message.chat.id):
         logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
         return
