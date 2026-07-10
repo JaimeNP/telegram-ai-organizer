@@ -52,6 +52,7 @@ async def cmd_adminhelp(message: Message):
         "🧭 Comandos de administración de TAIO\n\n"
         "/status - Ver configuración actual del bot\n"
         "/readiness - Comprobar si está seguro para grupo grande\n"
+        "/health - Comprobar que bot y base de datos responden\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions - Ver últimas decisiones simuladas\n"
@@ -126,6 +127,34 @@ async def cmd_readiness(message: Message):
         f"({len(ADMIN_USER_IDS)})\n\n"
         f"Resultado: {'✅ LISTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO LISTO'}"
     )
+
+@dp.message(Command("health"))
+async def cmd_health(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar la salud de TAIO.")
+        return
+
+    try:
+        stats = await get_basic_stats()
+
+        await message.answer(
+            "🩺 Salud de TAIO\n\n"
+            "Bot: ✅ funcionando\n"
+            "Base de datos: ✅ responde\n"
+            f"Mensajes guardados: {stats['messages']}\n"
+            f"Decisiones guardadas: {stats['decisions']}\n"
+            f"Modo de acción: {ACTION_MODE}"
+        )
+
+    except Exception as error:
+        logging.exception("Error comprobando salud de TAIO")
+
+        await message.answer(
+            "🩺 Salud de TAIO\n\n"
+            "Bot: ✅ funcionando\n"
+            "Base de datos: ❌ error\n"
+            f"Detalle: {type(error).__name__}"
+        )
 
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message):
