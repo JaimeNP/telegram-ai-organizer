@@ -176,17 +176,27 @@ async def capture_message(message: Message):
     try:
         msg = parse_message(message)
 
-        logging.warning(f"Guardando mensaje: {msg}")
+        logging.info(
+            f"Mensaje recibido: chat={msg.telegram_chat_id}, "
+            f"thread={msg.thread_id}, message={msg.telegram_message_id}, "
+            f"user={msg.user_id}"
+        )
+
         await save_message(msg)
-        logging.warning("Mensaje guardado correctamente en PostgreSQL")
+
+        logging.info(
+            f"Mensaje guardado: chat={msg.telegram_chat_id}, "
+            f"message={msg.telegram_message_id}"
+        )
 
         decision = await decide_for_message(msg)
         await save_decision(msg, decision)
         await execute_decision(msg, decision)
 
-        logging.warning(
-            f"Decisión simulada: action={decision.action}, "
-            f"confidence={decision.confidence:.2%}, reason={decision.reason}"
+        logging.info(
+            f"Decisión simulada: message={msg.telegram_message_id}, "
+            f"action={decision.action}, "
+            f"confidence={decision.confidence:.2%}"
         )
 
     except Exception:
