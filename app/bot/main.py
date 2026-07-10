@@ -283,6 +283,12 @@ async def cmd_settopic(message: Message):
 
 @dp.message()
 async def capture_message(message: Message):
+    if message.text and message.text.strip().startswith("/"):
+        logging.info(
+            f"Comando ignorado por capturador general: "
+            f"chat={message.chat.id}, message={message.message_id}"
+        )
+        return
     if not is_allowed_chat(message.chat.id):
         logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
         return
