@@ -66,6 +66,20 @@ async def cmd_stats(message: Message):
         f"Decisiones guardadas: {stats['decisions']}"
     )
 
+@dp.message(Command("whereami"))
+async def cmd_whereami(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar esta información.")
+        return
+
+    await message.answer(
+        "📍 Información del chat\n\n"
+        f"Chat ID: {message.chat.id}\n"
+        f"Tipo de chat: {message.chat.type}\n"
+        f"Thread ID: {message.message_thread_id}\n"
+        f"Tu user ID: {message.from_user.id if message.from_user else 'desconocido'}"
+    )
+
 @dp.message()
 async def capture_message(message: Message):
     if not is_allowed_chat(message.chat.id):
