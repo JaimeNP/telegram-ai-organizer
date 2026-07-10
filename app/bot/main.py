@@ -11,6 +11,7 @@ from app.repositories.decision_repository import save_decision
 from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
+from app.services.action_executor import execute_decision
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,6 +38,7 @@ async def capture_message(message: Message):
 
     decision = await decide_for_message(msg)
     await save_decision(msg, decision)
+    await execute_decision(msg, decision)
 
     logging.warning(
         f"Decisión simulada: action={decision.action}, "

@@ -17,6 +17,34 @@ SIMULATION_MODE = os.getenv("SIMULATION_MODE", "true").lower() in {
     "on",
 }
 
+ACTION_MODE = os.getenv("ACTION_MODE", "listen").lower()
+
+if ACTION_MODE not in {"listen", "simulate", "auto"}:
+    raise RuntimeError("ACTION_MODE debe ser listen, simulate o auto")
+
+
+ENABLE_DELETES = os.getenv("ENABLE_DELETES", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+ENABLE_REPOSTS = os.getenv("ENABLE_REPOSTS", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+ENABLE_PRIVATE_NOTICES = os.getenv("ENABLE_PRIVATE_NOTICES", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+
 _raw_allowed_chat_ids = os.getenv("ALLOWED_CHAT_IDS", "").strip()
 
 ALLOWED_CHAT_IDS: set[int] = set()
