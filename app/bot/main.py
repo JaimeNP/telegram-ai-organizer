@@ -39,6 +39,28 @@ dp = Dispatcher()
 async def cmd_start(message: Message):
     await message.answer("🤖 TAIO está funcionando correctamente.")
 
+@dp.message(Command("adminhelp"))
+async def cmd_adminhelp(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar la ayuda de TAIO.")
+        return
+
+    await message.answer(
+        "🧭 Comandos de administración de TAIO\n\n"
+        "/status - Ver configuración actual del bot\n"
+        "/readiness - Comprobar si está seguro para grupo grande\n"
+        "/stats - Ver mensajes y decisiones guardadas\n"
+        "/decisions - Ver últimas decisiones simuladas\n"
+        "/whereami - Ver chat_id, thread_id y user_id\n"
+        "/topics - Ver Topics detectados por TAIO\n"
+        "/adminhelp - Ver esta ayuda\n\n"
+        "Estado recomendado para grupo grande:\n"
+        "ACTION_MODE=listen\n"
+        "ENABLE_DELETES=false\n"
+        "ENABLE_REPOSTS=false\n"
+        "ENABLE_PRIVATE_NOTICES=false"
+    )
+
 @dp.message(Command("status"))
 async def cmd_status(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
