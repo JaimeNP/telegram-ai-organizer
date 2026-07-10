@@ -1,17 +1,15 @@
 import asyncio
 import logging
-from app.repositories.decision_repository import save_decision
-from app.services.decision_engine import decide_for_message
-from app.moderation.rules import check_message_rules
-from app.services.duplicate_detector import detect_duplicate
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
-from app.config.settings import BOT_TOKEN
+from app.config.settings import BOT_TOKEN, is_allowed_chat
 from app.database.init_db import init_db
+from app.repositories.decision_repository import save_decision
 from app.repositories.message_repository import save_message
+from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +25,10 @@ async def cmd_start(message: Message):
 
 @dp.message()
 async def capture_message(message: Message):
+    if not is_allowed_chat(message.chat.id):
+        logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
+        return
+
     msg = parse_message(message)
 
     logging.warning(f"Guardando mensaje: {msg}")
@@ -40,7 +42,6 @@ async def capture_message(message: Message):
         f"Decisión simulada: action={decision.action}, "
         f"confidence={decision.confidence:.2%}, reason={decision.reason}"
     )
-
 
 
 async def main():
