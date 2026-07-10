@@ -22,6 +22,7 @@ from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
+from app.repositories.stats_repository import get_basic_stats
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,6 +52,19 @@ async def cmd_status(message: Message):
         f"Chats autorizados: {allowed_chats}"
     )
 
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para consultar las estadísticas de TAIO.")
+        return
+
+    stats = await get_basic_stats()
+
+    await message.answer(
+        "📊 Estadísticas de TAIO\n\n"
+        f"Mensajes guardados: {stats['messages']}\n"
+        f"Decisiones guardadas: {stats['decisions']}"
+    )
 
 @dp.message()
 async def capture_message(message: Message):
