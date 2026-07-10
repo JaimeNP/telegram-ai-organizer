@@ -57,6 +57,7 @@ async def cmd_adminhelp(message: Message):
         "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions - Ver últimas decisiones simuladas\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
+        "/chatcheck - Comprobar si este chat está autorizado\n"
         "/topics - Ver Topics detectados por TAIO\n"
         "/settopic Nombre - Guardar el nombre de un Topic\n"
         "/adminhelp - Ver esta ayuda\n\n"
@@ -258,6 +259,24 @@ async def cmd_whereami(message: Message):
         f"Tipo de chat: {message.chat.type}\n"
         f"Thread ID: {message.message_thread_id}\n"
         f"Tu user ID: {message.from_user.id if message.from_user else 'desconocido'}"
+    )
+
+@dp.message(Command("chatcheck"))
+async def cmd_chatcheck(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        await message.answer("No tienes permiso para comprobar este chat.")
+        return
+
+    chat_allowed = is_allowed_chat(message.chat.id)
+    admin_allowed = is_admin_user(message.from_user.id if message.from_user else None)
+
+    await message.answer(
+        "🔎 Comprobación del chat\n\n"
+        f"Chat ID: {message.chat.id}\n"
+        f"Tipo de chat: {message.chat.type}\n"
+        f"Thread ID: {message.message_thread_id}\n"
+        f"Chat autorizado: {'✅' if chat_allowed else '❌'}\n"
+        f"Usuario admin: {'✅' if admin_allowed else '❌'}"
     )
 
 @dp.message(Command("topics"))
