@@ -3,8 +3,9 @@ from app.models.message import TelegramMessage
 from app.moderation.rules import check_message_rules
 from app.repositories.topic_repository import get_topic_name
 from app.services.duplicate_detector import detect_duplicate
-from app.services.topic_classifier import classify_topic
+from app.services.flood_detector import detect_flood
 from app.services.link_detector import detect_links
+from app.services.topic_classifier import classify_topic
 
 
 async def decide_for_message(message: TelegramMessage) -> BotDecision:
@@ -17,6 +18,19 @@ async def decide_for_message(message: TelegramMessage) -> BotDecision:
             action="would_flag_moderation",
             reason=moderation.reason or "Incumple una regla de moderación.",
             confidence=confidence,
+            simulated=True,
+        )
+
+    flood = await detect_flood(message)
+
+    if flood.is_flood:
+        return BotDecision(
+            action="would_flag_flood",
+            reason=(
+                f"El usuario ha enviado {flood.message_count} mensajes "
+                f"en los últimos {flood.window_seconds} segundos."
+            ),
+            confidence=0.85,
             simulated=True,
         )
 
