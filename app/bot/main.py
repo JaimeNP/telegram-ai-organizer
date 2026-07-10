@@ -212,13 +212,20 @@ async def cmd_decisions(message: Message):
         await message.answer("No tienes permiso para consultar las decisiones de TAIO.")
         return
 
-    items = await get_recent_decisions_with_messages(limit=5)
+    telegram_chat_id = None if message.chat.type == "private" else message.chat.id
+
+    items = await get_recent_decisions_with_messages(
+        limit=5,
+        telegram_chat_id=telegram_chat_id,
+    )
 
     if not items:
         await message.answer("TAIO todavía no tiene decisiones guardadas.")
         return
 
-    lines = ["🧠 Últimas decisiones de TAIO\n"]
+    scope = "todos los chats" if telegram_chat_id is None else f"chat {telegram_chat_id}"
+
+    lines = [f"🧠 Últimas decisiones de TAIO\n\nÁmbito: {scope}\n"]
 
     for item in items:
         decision = item["decision"]

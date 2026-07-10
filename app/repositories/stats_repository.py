@@ -1,5 +1,4 @@
 from sqlalchemy import and_, desc, func, select
-
 from app.database.models import StoredDecision, StoredMessage
 from app.database.session import AsyncSessionLocal
 
@@ -28,16 +27,38 @@ async def get_basic_stats(
         }
 
 
-async def get_recent_decisions(limit: int = 5) -> list[StoredDecision]:
+async def get_recent_decisions_with_messages(
+    limit: int = 5,
+    telegram_chat_id: int | None = None,
+) -> list[dict]:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(StoredDecision)
+        query = (
+            select(StoredDecision, StoredMessage)
+            .outerjoin(
+                StoredMessage,
+                and_(
+                    StoredDecision.telegram_chat_id == StoredMessage.telegram_chat_id,
+                    StoredDecision.telegram_message_id == StoredMessage.telegram_message_id,
+                ),
+            )
             .order_by(desc(StoredDecision.created_at))
             .limit(limit)
         )
 
-        return list(result.scalars().all())
+        if telegram_chat_id is not None:
+            query = query.where(StoredDecision.telegram_chat_id == telegram_chat_id)
 
+        result = await session.execute(query)
+
+        rows = result.all()
+
+        return [
+            {
+                "decision": row[0],
+                "message": row[1],
+            }
+            for row in rows
+        ]
 async def get_topic_stats(telegram_chat_id: int) -> list[dict]:
     async with AsyncSessionLocal() as session:
         result = await session.execute(
@@ -63,9 +84,12 @@ async def get_topic_stats(telegram_chat_id: int) -> list[dict]:
             for row in rows
         ]
     
-async def get_recent_decisions_with_messages(limit: int = 5) -> list[dict]:
+async def get_recent_decisions_with_messages(
+    limit: int = 5,
+    telegram_chat_id: int | None = None,
+) -> list[dict]:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(
+        query = (
             select(StoredDecision, StoredMessage)
             .outerjoin(
                 StoredMessage,
@@ -77,6 +101,11 @@ async def get_recent_decisions_with_messages(limit: int = 5) -> list[dict]:
             .order_by(desc(StoredDecision.created_at))
             .limit(limit)
         )
+
+        if telegram_chat_id is not None:
+            query = query.where(StoredDecision.telegram_chat_id == telegram_chat_id)
+
+        result = await session.execute(query)
 
         rows = result.all()
 
