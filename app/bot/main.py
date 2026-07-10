@@ -120,8 +120,10 @@ async def cmd_readiness(message: Message):
         f"Borrados desactivados: {'✅' if deletes_ok else '❌'}\n"
         f"Reenvíos desactivados: {'✅' if reposts_ok else '❌'}\n"
         f"Avisos privados desactivados: {'✅' if notices_ok else '❌'}\n"
-        f"Chats autorizados configurados: {'✅' if allowed_chats_ok else '❌'}\n"
-        f"Administradores configurados: {'✅' if admins_ok else '❌'}\n\n"
+        f"Chats autorizados configurados: {'✅' if allowed_chats_ok else '❌'} "
+        f"({len(ALLOWED_CHAT_IDS)})\n"
+        f"Administradores configurados: {'✅' if admins_ok else '❌'} "
+        f"({len(ADMIN_USER_IDS)})\n\n"
         f"Resultado: {'✅ LISTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO LISTO'}"
     )
 
