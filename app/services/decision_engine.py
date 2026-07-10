@@ -4,6 +4,7 @@ from app.moderation.rules import check_message_rules
 from app.repositories.topic_repository import get_topic_name
 from app.services.duplicate_detector import detect_duplicate
 from app.services.topic_classifier import classify_topic
+from app.services.link_detector import detect_links
 
 
 async def decide_for_message(message: TelegramMessage) -> BotDecision:
@@ -51,6 +52,19 @@ async def decide_for_message(message: TelegramMessage) -> BotDecision:
                 f"{duplicate.original_message_id}."
             ),
             confidence=duplicate.similarity,
+            simulated=True,
+        )
+
+    links = detect_links(message.text)
+
+    if links.has_links:
+        return BotDecision(
+            action="would_analyze_link",
+            reason=(
+                f"El mensaje contiene {len(links.links)} enlace(s). "
+                "En una fase posterior TAIO analizará su contenido para sugerir el Topic adecuado."
+            ),
+            confidence=0.70,
             simulated=True,
         )
 
