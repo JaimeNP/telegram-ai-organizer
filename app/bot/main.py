@@ -66,7 +66,8 @@ async def cmd_adminhelp(message: Message):
         "/entrycheck - Comprobación final antes de observar un grupo\n"
         "/topics - Ver Topics detectados por TAIO\n"
         "/topicsamples CHAT_ID - Ver muestras de mensajes por Topic\n"
-        "/settopic Nombre - Guardar el nombre de un Topic\n"
+        "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
+        "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
         "/adminhelp - Ver esta ayuda\n\n"
         "Funciones ya simuladas:\n"
         "- Clasificación básica hacia Topics\n"
@@ -483,6 +484,47 @@ async def cmd_settopic(message: Message):
         f"Thread ID: {message.message_thread_id}\n"
         f"Nombre: {topic_name}"
     )
+
+@dp.message(Command("settopicid"), AdminOnly())
+async def cmd_settopicid(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split(maxsplit=3)
+
+    if len(parts) < 4:
+        await message.answer(
+            "Uso correcto:\n"
+            "/settopicid CHAT_ID THREAD_ID Nombre del Topic"
+        )
+        return
+
+    try:
+        telegram_chat_id = int(parts[1])
+        thread_id = int(parts[2])
+    except ValueError:
+        await message.answer("CHAT_ID y THREAD_ID deben ser números.")
+        return
+
+    topic_name = parts[3].strip()
+
+    if not topic_name:
+        await message.answer("El nombre del Topic no puede estar vacío.")
+        return
+
+    await save_topic_name(
+        telegram_chat_id=telegram_chat_id,
+        thread_id=thread_id,
+        name=topic_name,
+    )
+
+    await message.answer(
+        "✅ Topic guardado en TAIO\n\n"
+        f"Chat ID: {telegram_chat_id}\n"
+        f"Thread ID: {thread_id}\n"
+        f"Nombre: {topic_name}"
+    )
+
 
 @dp.message()
 async def capture_message(message: Message):
