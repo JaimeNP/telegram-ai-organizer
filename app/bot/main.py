@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import BaseFilter, Command, CommandStart
 from aiogram.types import Message
 
 from app.config.settings import (
@@ -37,12 +37,16 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+class AdminOnly(BaseFilter):
+    async def __call__(self, message: Message) -> bool:
+        return is_admin_user(message.from_user.id if message.from_user else None)
+
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
     await message.answer("🤖 TAIO está funcionando correctamente.")
 
-@dp.message(Command("adminhelp"))
+@dp.message(Command("adminhelp"), AdminOnly())
 async def cmd_adminhelp(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar la ayuda de TAIO.")
@@ -75,7 +79,7 @@ async def cmd_adminhelp(message: Message):
         "ENABLE_PRIVATE_NOTICES=false"
     )
 
-@dp.message(Command("status"))
+@dp.message(Command("status"), AdminOnly())
 async def cmd_status(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar el estado de TAIO.")
@@ -95,7 +99,7 @@ async def cmd_status(message: Message):
         f"Número de admins configurados: {len(ADMIN_USER_IDS)}"
     )
 
-@dp.message(Command("readiness"))
+@dp.message(Command("readiness"), AdminOnly())
 async def cmd_readiness(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar la preparación de TAIO.")
@@ -132,7 +136,7 @@ async def cmd_readiness(message: Message):
         f"Resultado: {'✅ LISTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO LISTO'}"
     )
 
-@dp.message(Command("health"))
+@dp.message(Command("health"), AdminOnly())
 async def cmd_health(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar la salud de TAIO.")
@@ -160,7 +164,7 @@ async def cmd_health(message: Message):
             f"Detalle: {type(error).__name__}"
         )
 
-@dp.message(Command("stats"))
+@dp.message(Command("stats"), AdminOnly())
 async def cmd_stats(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar las estadísticas de TAIO.")
@@ -181,7 +185,7 @@ async def cmd_stats(message: Message):
         f"Decisiones guardadas: {stats['decisions']}"
     )
 
-@dp.message(Command("decisionstats"))
+@dp.message(Command("decisionstats"), AdminOnly())
 async def cmd_decisionstats(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar el resumen de decisiones de TAIO.")
@@ -208,7 +212,7 @@ async def cmd_decisionstats(message: Message):
 
     await message.answer("\n".join(lines))
 
-@dp.message(Command("decisions"))
+@dp.message(Command("decisions"), AdminOnly())
 async def cmd_decisions(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar las decisiones de TAIO.")
@@ -270,7 +274,7 @@ async def cmd_decisions(message: Message):
 
     await message.answer("\n".join(lines))
 
-@dp.message(Command("whereami"))
+@dp.message(Command("whereami"), AdminOnly())
 async def cmd_whereami(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar esta información.")
@@ -284,7 +288,7 @@ async def cmd_whereami(message: Message):
         f"Tu user ID: {message.from_user.id if message.from_user else 'desconocido'}"
     )
 
-@dp.message(Command("chatcheck"))
+@dp.message(Command("chatcheck"), AdminOnly())
 async def cmd_chatcheck(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para comprobar este chat.")
@@ -302,7 +306,7 @@ async def cmd_chatcheck(message: Message):
         f"Usuario admin: {'✅' if admin_allowed else '❌'}"
     )
 
-@dp.message(Command("entrycheck"))
+@dp.message(Command("entrycheck"), AdminOnly())
 async def cmd_entrycheck(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para hacer la comprobación de entrada.")
@@ -358,7 +362,7 @@ async def cmd_entrycheck(message: Message):
         f"Resultado: {'✅ APTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO APTO TODAVÍA'}"
     )
 
-@dp.message(Command("topics"))
+@dp.message(Command("topics"), AdminOnly())
 async def cmd_topics(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para consultar los Topics de TAIO.")
@@ -385,7 +389,7 @@ async def cmd_topics(message: Message):
 
     await message.answer("\n".join(lines))
 
-@dp.message(Command("settopic"))
+@dp.message(Command("settopic"), AdminOnly())
 async def cmd_settopic(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         await message.answer("No tienes permiso para configurar Topics en TAIO.")
