@@ -27,6 +27,7 @@ from app.repositories.topic_repository import get_topic_name, save_topic_name
 from app.repositories.stats_repository import (
     get_basic_stats,
     get_decision_action_stats,
+    get_recent_decisions_by_action,
     get_recent_decisions_with_messages,
     get_topic_message_samples,
     get_topic_samples,
@@ -73,6 +74,7 @@ async def cmd_adminhelp(message: Message):
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
+        "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -290,6 +292,89 @@ async def cmd_decisions(message: Message):
             f"Texto: {text_preview}\n"
             f"Motivo: {reason_preview}\n"
         )
+
+    await message.answer("\n".join(lines))
+
+@dp.message(Command("moves"), AdminOnly())
+async def cmd_moves(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    limit = 10
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /moves CHAT_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                limit = int(parts[2])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+    else:
+        telegram_chat_id = message.chat.id
+
+        if len(parts) >= 2:
+            try:
+                limit = int(parts[1])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+
+    limit = max(1, min(limit, 20))
+
+    rows = await get_recent_decisions_by_action(
+        action="would_move_to_topic",
+        telegram_chat_id=telegram_chat_id,
+        limit=limit,
+    )
+
+    if not rows:
+        await message.answer("No hay sugerencias de movimiento registradas.")
+        return
+
+    lines = [
+        "🚚 Sugerencias de movimiento\n",
+        f"Chat: {telegram_chat_id}",
+        f"Límite: {limit}\n",
+    ]
+
+    for row in rows:
+        decision = row["decision"]
+        stored_message = row["message"]
+
+        text_preview = ""
+
+        if stored_message and stored_message.text:
+            text_preview = " ".join(stored_message.text.split())[:140]
+        else:
+            text_preview = "[mensaje sin texto]"
+
+        message_link = build_telegram_message_link(
+            telegram_chat_id=decision.telegram_chat_id,
+            telegram_message_id=decision.telegram_message_id,
+        )
+
+        lines.append(
+            f"#{decision.telegram_message_id} · {decision.confidence:.0%}\n"
+            f"Texto: {text_preview}\n"
+            f"Motivo: {decision.reason[:180]}"
+        )
+
+        if message_link:
+            lines.append(message_link)
+
+        lines.append("")
 
     await message.answer("\n".join(lines))
 

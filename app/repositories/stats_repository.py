@@ -203,3 +203,38 @@ async def get_topic_message_samples(
         )
 
         return list(result.scalars().all())
+
+async def get_recent_decisions_by_action(
+    action: str,
+    limit: int = 10,
+    telegram_chat_id: int | None = None,
+) -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        query = (
+            select(StoredDecision, StoredMessage)
+            .outerjoin(
+                StoredMessage,
+                and_(
+                    StoredDecision.telegram_chat_id == StoredMessage.telegram_chat_id,
+                    StoredDecision.telegram_message_id == StoredMessage.telegram_message_id,
+                ),
+            )
+            .where(StoredDecision.action == action)
+            .order_by(desc(StoredDecision.created_at))
+            .limit(limit)
+        )
+
+        if telegram_chat_id is not None:
+            query = query.where(StoredDecision.telegram_chat_id == telegram_chat_id)
+
+        result = await session.execute(query)
+
+        rows = result.all()
+
+        return [
+            {
+                "decision": row[0],
+                "message": row[1],
+            }
+            for row in rows
+        ]
