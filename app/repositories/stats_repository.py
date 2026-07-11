@@ -144,3 +144,45 @@ async def get_decision_action_stats(
             }
             for row in rows
         ]
+    
+
+async def get_topic_samples(
+    telegram_chat_id: int,
+    max_messages: int = 300,
+) -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredMessage)
+            .where(StoredMessage.telegram_chat_id == telegram_chat_id)
+            .where(StoredMessage.thread_id.is_not(None))
+            .where(StoredMessage.text.is_not(None))
+            .order_by(desc(StoredMessage.date))
+            .limit(max_messages)
+        )
+
+        messages = list(result.scalars().all())
+
+    grouped: dict[int, list[StoredMessage]] = {}
+
+    for message in messages:
+        if message.thread_id is None:
+            continue
+
+        grouped.setdefault(message.thread_id, []).append(message)
+
+    topics = []
+
+    for thread_id, topic_messages in grouped.items():
+        topics.append(
+            {
+                "thread_id": thread_id,
+                "message_count": len(topic_messages),
+                "samples": topic_messages[:2],
+            }
+        )
+
+    return sorted(
+        topics,
+        key=lambda topic: topic["message_count"],
+        reverse=True,
+    )

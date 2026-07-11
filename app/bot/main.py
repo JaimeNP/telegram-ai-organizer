@@ -28,6 +28,7 @@ from app.repositories.stats_repository import (
     get_basic_stats,
     get_decision_action_stats,
     get_recent_decisions_with_messages,
+    get_topic_samples,
     get_topic_stats,
 )
 
@@ -64,6 +65,7 @@ async def cmd_adminhelp(message: Message):
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
         "/topics - Ver Topics detectados por TAIO\n"
+        "/topicsamples CHAT_ID - Ver muestras de mensajes por Topic\n"
         "/settopic Nombre - Guardar el nombre de un Topic\n"
         "/adminhelp - Ver esta ayuda\n\n"
         "Funciones ya simuladas:\n"
@@ -392,6 +394,63 @@ async def cmd_topics(message: Message):
         lines.append(f"\nMostrando 30 de {len(topics)} Topics detectados.")
 
     await message.answer("\n".join(lines))
+
+@dp.message(Command("topicsamples"), AdminOnly())
+async def cmd_topicsamples(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split(maxsplit=1)
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /topicsamples CHAT_ID")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1].strip())
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+    else:
+        telegram_chat_id = message.chat.id
+
+    topics = await get_topic_samples(
+        telegram_chat_id=telegram_chat_id,
+        max_messages=300,
+    )
+
+    if not topics:
+        await message.answer("No hay muestras de Topics para ese chat.")
+        return
+
+    lines = [
+        "🧪 Muestras por Topic\n",
+        f"Chat: {telegram_chat_id}\n",
+    ]
+
+    for topic in topics[:10]:
+        topic_name = await get_topic_name(telegram_chat_id, topic["thread_id"])
+        display_name = topic_name or f"Topic {topic['thread_id']}"
+
+        lines.append(
+            f"\n{display_name} · ID {topic['thread_id']} · "
+            f"{topic['message_count']} muestras recientes"
+        )
+
+        for sample in topic["samples"]:
+            text_preview = " ".join((sample.text or "").split())
+            text_preview = text_preview[:100]
+
+            lines.append(
+                f"- #{sample.telegram_message_id}: {text_preview}"
+            )
+
+    if len(topics) > 10:
+        lines.append(f"\nMostrando 10 de {len(topics)} Topics detectados.")
+
+    await message.answer("\n".join(lines))
+
 
 @dp.message(Command("settopic"), AdminOnly())
 async def cmd_settopic(message: Message):
