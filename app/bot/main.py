@@ -251,7 +251,8 @@ async def cmd_decisions(message: Message):
         stored_message = item["message"]
 
         if stored_message and stored_message.text:
-            text_preview = stored_message.text[:120]
+            text_preview = " ".join(stored_message.text.split())
+            text_preview = text_preview[:60]
         else:
             text_preview = "sin texto"
 
@@ -264,12 +265,14 @@ async def cmd_decisions(message: Message):
         else:
             thread_info = "desconocido"
 
+        reason_preview = " ".join(decision.reason.split())
+        reason_preview = reason_preview[:120]
+
         lines.append(
-            f"Mensaje {decision.telegram_message_id} · {thread_info}\n"
+            f"#{decision.telegram_message_id} · {thread_info}\n"
+            f"{decision.action} · {decision.confidence:.0%}\n"
             f"Texto: {text_preview}\n"
-            f"Acción: {decision.action}\n"
-            f"Confianza: {decision.confidence:.2%}\n"
-            f"Motivo: {decision.reason}\n"
+            f"Motivo: {reason_preview}\n"
         )
 
     await message.answer("\n".join(lines))
