@@ -115,6 +115,7 @@ async def cmd_adminhelp(message: Message):
         "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
         "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
         "/adminhelp - Ver esta ayuda\n\n"
+        "/adminbrief - Resumen rápido para admins nuevos\n"
         "Funciones ya simuladas:\n"
         "- Clasificación básica hacia Topics\n"
         "- Detección de duplicados\n"
@@ -126,6 +127,41 @@ async def cmd_adminhelp(message: Message):
         "ENABLE_DELETES=false\n"
         "ENABLE_REPOSTS=false\n"
         "ENABLE_PRIVATE_NOTICES=false"
+    )
+
+
+@dp.message(Command("adminbrief"), AdminOnly())
+async def cmd_adminbrief(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    await message.answer(
+        "🧭 Resumen rápido de TAIO para admins\n\n"
+        "Estado actual:\n"
+        "- TAIO observa Airbus en modo seguro.\n"
+        "- No borra mensajes.\n"
+        "- No mueve mensajes.\n"
+        "- No escribe avisos privados.\n"
+        "- Solo propone y aprende.\n\n"
+        "Uso recomendado siempre por privado con @taio_airbus_bot.\n\n"
+        "1) Revisar mensajes recientes de General:\n"
+        "/triage -1003710195540 30\n\n"
+        "2) Si TAIO acierta, copiar el comando que aparece bajo:\n"
+        "✅ Confirmar\n\n"
+        "Ejemplo:\n"
+        "/learnmove -1003710195540 22585 9482\n\n"
+        "3) Si TAIO se equivoca, copiar el comando bajo:\n"
+        "❌ Dejar en General\n\n"
+        "Ejemplo:\n"
+        "/learnallow -1003710195540 22585\n\n"
+        "4) Ver Topics conocidos:\n"
+        "/topics -1003710195540\n\n"
+        "5) Ver mensajes recientes de General:\n"
+        "/general -1003710195540 20\n\n"
+        "Importante:\n"
+        "- No hace falta ser admin del grupo de Telegram para enseñar a TAIO ahora mismo.\n"
+        "- No usar comandos dentro del grupo Airbus salvo necesidad.\n"
+        "- Si hay duda, usar /learnallow antes que forzar un Topic incorrecto."
     )
 
 @dp.message(Command("status"), AdminOnly())
