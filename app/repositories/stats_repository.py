@@ -149,6 +149,7 @@ async def get_decision_action_stats(
 async def get_topic_samples(
     telegram_chat_id: int,
     max_messages: int = 300,
+    samples_per_topic: int = 2,
 ) -> list[dict]:
     async with AsyncSessionLocal() as session:
         result = await session.execute(
@@ -177,7 +178,7 @@ async def get_topic_samples(
             {
                 "thread_id": thread_id,
                 "message_count": len(topic_messages),
-                "samples": topic_messages[:2],
+                "samples": topic_messages[:samples_per_topic],
             }
         )
 

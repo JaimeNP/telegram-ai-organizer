@@ -65,7 +65,7 @@ async def cmd_adminhelp(message: Message):
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
         "/topics - Ver Topics detectados por TAIO\n"
-        "/topicsamples CHAT_ID - Ver muestras de mensajes por Topic\n"
+        "/topicsamples CHAT_ID [n] - Ver muestras por Topic, máximo 5\n"
         "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
         "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
         "/adminhelp - Ver esta ayuda\n\n"
@@ -401,24 +401,43 @@ async def cmd_topicsamples(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
         return
 
-    parts = (message.text or "").split(maxsplit=1)
+    parts = (message.text or "").split()
+
+    samples_per_topic = 2
 
     if message.chat.type == "private":
         if len(parts) < 2:
-            await message.answer("Uso correcto: /topicsamples CHAT_ID")
+            await message.answer("Uso correcto: /topicsamples CHAT_ID [muestras_por_topic]")
             return
 
         try:
-            telegram_chat_id = int(parts[1].strip())
+            telegram_chat_id = int(parts[1])
         except ValueError:
             await message.answer("El CHAT_ID debe ser un número.")
             return
+
+        if len(parts) >= 3:
+            try:
+                samples_per_topic = int(parts[2])
+            except ValueError:
+                await message.answer("El número de muestras debe ser un número.")
+                return
     else:
         telegram_chat_id = message.chat.id
+
+        if len(parts) >= 2:
+            try:
+                samples_per_topic = int(parts[1])
+            except ValueError:
+                await message.answer("El número de muestras debe ser un número.")
+                return
+
+    samples_per_topic = max(1, min(samples_per_topic, 5))
 
     topics = await get_topic_samples(
         telegram_chat_id=telegram_chat_id,
         max_messages=300,
+        samples_per_topic=samples_per_topic,
     )
 
     if not topics:
@@ -428,6 +447,7 @@ async def cmd_topicsamples(message: Message):
     lines = [
         "🧪 Muestras por Topic\n",
         f"Chat: {telegram_chat_id}\n",
+        f"Muestras por Topic: {samples_per_topic}\n",
     ]
 
     for topic in topics[:10]:
