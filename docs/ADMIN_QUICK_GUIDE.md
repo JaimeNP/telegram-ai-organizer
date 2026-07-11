@@ -1,5 +1,17 @@
 # TAIO — Guía rápida para admins
 
+## Alta de nuevos admins
+
+Para que un admin pueda usar TAIO:
+
+1. El admin abre privado con `@taio_airbus_bot`.
+2. Envía:
+
+```text
+/myid
+
+
+
 TAIO está en modo seguro.
 
 No borra mensajes.  

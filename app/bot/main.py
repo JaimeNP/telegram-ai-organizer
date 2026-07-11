@@ -74,6 +74,18 @@ def build_telegram_message_link(
 async def cmd_start(message: Message):
     await message.answer("🤖 TAIO está funcionando correctamente.")
 
+@dp.message(Command("myid"))
+async def cmd_myid(message: Message):
+    user_id = message.from_user.id if message.from_user else None
+    username = message.from_user.username if message.from_user else None
+
+    await message.answer(
+        "🪪 Tu identificador de Telegram\n\n"
+        f"User ID: {user_id}\n"
+        f"Username: @{username if username else 'sin_username'}\n\n"
+        "Pásale este User ID al administrador de TAIO para que pueda darte acceso."
+    )
+
 @dp.message(Command("adminhelp"), AdminOnly())
 async def cmd_adminhelp(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
@@ -82,6 +94,7 @@ async def cmd_adminhelp(message: Message):
 
     await message.answer(
         "🧭 Comandos de administración de TAIO\n\n"
+       "/myid - Ver tu User ID de Telegram\n"
         "/status - Ver configuración actual del bot\n"
         "/readiness - Comprobar si está seguro para grupo grande\n"
         "/health - Comprobar que bot y base de datos responden\n"
