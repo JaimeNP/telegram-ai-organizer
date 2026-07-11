@@ -3,7 +3,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import BaseFilter, Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.config.settings import (
     ACTION_MODE,
@@ -70,6 +70,35 @@ def build_telegram_message_link(
 
     return None
 
+def build_learning_keyboard(
+    telegram_chat_id: int,
+    telegram_message_id: int,
+    target_thread_id: int,
+    topic_name: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"✅ Mover a {topic_name[:28]}",
+                    callback_data=(
+                        f"learn:move:{telegram_chat_id}:"
+                        f"{telegram_message_id}:{target_thread_id}"
+                    ),
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Dejar en General",
+                    callback_data=(
+                        f"learn:allow:{telegram_chat_id}:"
+                        f"{telegram_message_id}"
+                    ),
+                )
+            ],
+        ]
+    )
+
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
     await message.answer("🤖 TAIO está funcionando correctamente.")
@@ -104,6 +133,7 @@ async def cmd_adminhelp(message: Message):
         "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
        "/general CHAT_ID [n] - Ver mensajes recientes de General\n"
        "/triage CHAT_ID [n] - Sugerir Topics para mensajes recientes de General\n"
+       "/triagecards CHAT_ID [n] - Triage con botones para aprender\n"
         "/learnmove CHAT_ID MESSAGE_ID THREAD_ID - Enseñar movimiento correcto\n"
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
@@ -696,6 +726,151 @@ async def cmd_triage(message: Message):
 
     await message.answer("\n".join(lines))
 
+
+@dp.message(Command("triagecards"), AdminOnly())
+async def cmd_triagecards(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    limit = 5
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /triagecards CHAT_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                limit = int(parts[2])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+    else:
+        telegram_chat_id = message.chat.id
+
+        if len(parts) >= 2:
+            try:
+                limit = int(parts[1])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+
+    limit = max(1, min(limit, 10))
+
+    rows = await get_recent_general_messages_with_decisions(
+        telegram_chat_id=telegram_chat_id,
+        limit=50,
+    )
+
+    suggestions = []
+
+    for row in rows:
+        stored_message = row["message"]
+
+        learning_match = await classify_topic_by_learning(stored_message)
+
+        if learning_match.should_stay_in_general:
+            continue
+
+        if learning_match.should_move:
+            suggestions.append(
+                {
+                    "message": stored_message,
+                    "match": learning_match,
+                }
+            )
+            continue
+
+        match = classify_topic_by_keywords(stored_message)
+
+        if match.should_move:
+            suggestions.append(
+                {
+                    "message": stored_message,
+                    "match": match,
+                }
+            )
+
+    if not suggestions:
+        await message.answer("No hay sugerencias de Topic para General.")
+        return
+
+    await message.answer(
+        f"🚦 Enviando {min(limit, len(suggestions))} tarjetas de triage..."
+    )
+
+    for item in suggestions[:limit]:
+        stored_message = item["message"]
+        match = item["match"]
+
+        target_thread_id = match.target_thread_id
+
+        topic_info = await get_topic_info(
+            telegram_chat_id,
+            target_thread_id,
+        )
+
+        topic_display = (
+            topic_info.name
+            if topic_info
+            else f"Topic {target_thread_id}"
+        )
+
+        topic_status = ""
+
+        if topic_info and topic_info.is_closed:
+            topic_status = " · ⚠️ cerrado"
+
+        if topic_info and topic_info.is_deleted:
+            topic_status = " · ⚠️ borrado"
+
+        keywords = ", ".join(match.matched_keywords or [])
+
+        text_preview = " ".join((stored_message.text or "").split())
+        text_preview = text_preview[:700] if text_preview else "[mensaje sin texto]"
+
+        message_link = build_telegram_message_link(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=stored_message.telegram_message_id,
+        )
+
+        lines = [
+            "🚦 Triage de General",
+            "",
+            f"Mensaje: #{stored_message.telegram_message_id}",
+            f"Sugerencia: {topic_display}{topic_status}",
+            f"Confianza: {match.confidence:.0%}",
+            f"Claves: {keywords}",
+            "",
+            f"Texto:\n{text_preview}",
+        ]
+
+        if message_link:
+            lines.extend(
+                [
+                    "",
+                    message_link,
+                ]
+            )
+
+        await message.answer(
+            "\n".join(lines),
+            reply_markup=build_learning_keyboard(
+                telegram_chat_id=telegram_chat_id,
+                telegram_message_id=stored_message.telegram_message_id,
+                target_thread_id=target_thread_id,
+                topic_name=topic_display,
+            ),
+        )
+
 @dp.message(Command("learnmove"), AdminOnly())
 async def cmd_learnmove(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
@@ -799,6 +974,98 @@ async def cmd_learnallow(message: Message):
         f"Texto: {text_preview}"
     )
 
+
+@dp.callback_query(lambda callback: callback.data and callback.data.startswith("learn:"))
+async def callback_learning(callback: CallbackQuery):
+    if not is_admin_user(callback.from_user.id if callback.from_user else None):
+        await callback.answer("No tienes permiso para usar TAIO.", show_alert=True)
+        return
+
+    data = callback.data or ""
+    parts = data.split(":")
+
+    if len(parts) < 4:
+        await callback.answer("Acción no válida.", show_alert=True)
+        return
+
+    action = parts[1]
+
+    try:
+        telegram_chat_id = int(parts[2])
+        telegram_message_id = int(parts[3])
+    except ValueError:
+        await callback.answer("Datos inválidos.", show_alert=True)
+        return
+
+    stored_message = await get_message_by_telegram_id(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+    )
+
+    if not stored_message:
+        await callback.answer("No encuentro ese mensaje.", show_alert=True)
+        return
+
+    if action == "move":
+        if len(parts) < 5:
+            await callback.answer("Falta el Topic destino.", show_alert=True)
+            return
+
+        try:
+            target_thread_id = int(parts[4])
+        except ValueError:
+            await callback.answer("Topic destino inválido.", show_alert=True)
+            return
+
+        await save_learning_example(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=telegram_message_id,
+            source_thread_id=stored_message.thread_id,
+            label="move_to_topic",
+            target_thread_id=target_thread_id,
+            text=stored_message.text,
+            created_by_user_id=callback.from_user.id if callback.from_user else None,
+        )
+
+        topic_name = await get_topic_name(
+            telegram_chat_id,
+            target_thread_id,
+        )
+
+        topic_display = topic_name or f"Topic {target_thread_id}"
+
+        await callback.answer("Aprendizaje guardado.")
+
+        if callback.message:
+            await callback.message.edit_text(
+                (callback.message.text or "")
+                + f"\n\n✅ Confirmado por admin: mover a {topic_display}."
+            )
+
+        return
+
+    if action == "allow":
+        await save_learning_example(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=telegram_message_id,
+            source_thread_id=stored_message.thread_id,
+            label="allow_general",
+            target_thread_id=None,
+            text=stored_message.text,
+            created_by_user_id=callback.from_user.id if callback.from_user else None,
+        )
+
+        await callback.answer("Aprendizaje guardado.")
+
+        if callback.message:
+            await callback.message.edit_text(
+                (callback.message.text or "")
+                + "\n\n❌ Confirmado por admin: puede quedarse en General."
+            )
+
+        return
+
+    await callback.answer("Acción no reconocida.", show_alert=True)
 
 @dp.message(Command("whereami"), AdminOnly())
 async def cmd_whereami(message: Message):
