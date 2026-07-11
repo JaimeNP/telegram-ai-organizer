@@ -70,34 +70,82 @@ def build_telegram_message_link(
 
     return None
 
+AIRBUS_TRIAGE_TOPIC_BUTTONS = [
+    (9482, "Propuestas"),
+    (21638, "Documentación"),
+    (21630, "Comité Huelga"),
+    (21634, "Comunicación"),
+    (14577, "Medios/redes"),
+    (3302, "Comunicados"),
+    (9628, "Manifestaciones"),
+    (15949, "Éxitos huelga"),
+    (20559, "Grupos Trabajo"),
+    (5338, "Eslogan"),
+    (3320, "Archivo/docs"),
+    (19265, "Jean Brice"),
+]
+
+
 def build_learning_keyboard(
     telegram_chat_id: int,
     telegram_message_id: int,
     target_thread_id: int,
     topic_name: str,
 ) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=f"✅ Mover a {topic_name[:28]}",
+                callback_data=(
+                    f"learn:move:{telegram_chat_id}:"
+                    f"{telegram_message_id}:{target_thread_id}"
+                ),
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="❌ Dejar en General",
+                callback_data=(
+                    f"learn:allow:{telegram_chat_id}:"
+                    f"{telegram_message_id}"
+                ),
+            )
+        ],
+    ]
+
+    if telegram_chat_id == -1003710195540:
+        keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=f"✅ Mover a {topic_name[:28]}",
+                    text="👇 Mover a otro Topic",
                     callback_data=(
-                        f"learn:move:{telegram_chat_id}:"
-                        f"{telegram_message_id}:{target_thread_id}"
-                    ),
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="❌ Dejar en General",
-                    callback_data=(
-                        f"learn:allow:{telegram_chat_id}:"
+                        f"learn:noop:{telegram_chat_id}:"
                         f"{telegram_message_id}"
                     ),
                 )
-            ],
-        ]
-    )
+            ]
+        )
+
+        alternative_buttons = []
+
+        for thread_id, label in AIRBUS_TRIAGE_TOPIC_BUTTONS:
+            if thread_id == target_thread_id:
+                continue
+
+            alternative_buttons.append(
+                InlineKeyboardButton(
+                    text=label,
+                    callback_data=(
+                        f"learn:move:{telegram_chat_id}:"
+                        f"{telegram_message_id}:{thread_id}"
+                    ),
+                )
+            )
+
+        for index in range(0, len(alternative_buttons), 2):
+            keyboard.append(alternative_buttons[index:index + 2])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
@@ -1005,7 +1053,12 @@ async def callback_learning(callback: CallbackQuery):
     if not stored_message:
         await callback.answer("No encuentro ese mensaje.", show_alert=True)
         return
-
+    if action == "noop":
+        await callback.answer(
+            "Elige uno de los Topics alternativos.",
+            show_alert=False,
+        )
+        return
     if action == "move":
         if len(parts) < 5:
             await callback.answer("Falta el Topic destino.", show_alert=True)
