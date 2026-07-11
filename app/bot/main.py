@@ -582,12 +582,27 @@ async def cmd_triage(message: Message):
         stored_message = item["message"]
         match = item["match"]
 
-        topic_name = await get_topic_name(
+        target_thread_id = match.target_thread_id
+
+        topic_info = await get_topic_info(
             telegram_chat_id,
-            match.target_thread_id,
+            target_thread_id,
         )
 
-        topic_display = topic_name or f"Topic {match.target_thread_id}"
+        topic_display = (
+            topic_info.name
+            if topic_info
+            else f"Topic {target_thread_id}"
+        )
+
+        topic_status = ""
+
+        if topic_info and topic_info.is_closed:
+            topic_status = " · ⚠️ cerrado"
+
+        if topic_info and topic_info.is_deleted:
+            topic_status = " · ⚠️ borrado"
+
         keywords = ", ".join(match.matched_keywords or [])
 
         text_preview = " ".join((stored_message.text or "").split())
@@ -598,15 +613,32 @@ async def cmd_triage(message: Message):
             telegram_message_id=stored_message.telegram_message_id,
         )
 
+        learnmove_command = (
+            f"/learnmove {telegram_chat_id} "
+            f"{stored_message.telegram_message_id} {target_thread_id}"
+        )
+
+        learnallow_command = (
+            f"/learnallow {telegram_chat_id} "
+            f"{stored_message.telegram_message_id}"
+        )
+
         lines.append(
             f"#{stored_message.telegram_message_id} · {match.confidence:.0%}\n"
-            f"Sugerencia: {topic_display}\n"
+            f"Sugerencia: {topic_display}{topic_status}\n"
             f"Claves: {keywords}\n"
             f"Texto: {text_preview}"
         )
 
         if message_link:
             lines.append(message_link)
+
+        lines.append(
+            "\n✅ Confirmar:\n"
+            f"{learnmove_command}\n\n"
+            "❌ Dejar en General:\n"
+            f"{learnallow_command}"
+        )
 
         lines.append("")
 
