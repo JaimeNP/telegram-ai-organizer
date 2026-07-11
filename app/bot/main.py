@@ -75,7 +75,7 @@ async def cmd_adminhelp(message: Message):
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
-        "/topics - Ver Topics detectados por TAIO\n"
+        "/topics [CHAT_ID] - Ver Topics detectados\n"
         "/topicsamples CHAT_ID [n] - Ver muestras por Topic, máximo 5\n"
         "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
         "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
@@ -382,19 +382,40 @@ async def cmd_entrycheck(message: Message):
 @dp.message(Command("topics"), AdminOnly())
 async def cmd_topics(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
-        await message.answer("No tienes permiso para consultar los Topics de TAIO.")
         return
 
-    topics = await get_topic_stats(message.chat.id)
+    parts = (message.text or "").split(maxsplit=1)
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /topics CHAT_ID")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1].strip())
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+    else:
+        telegram_chat_id = message.chat.id
+
+    topics = await get_topic_stats(telegram_chat_id)
 
     if not topics:
-        await message.answer("TAIO todavía no tiene mensajes guardados en Topics.")
+        await message.answer("Todavía no hay Topics registrados para ese chat.")
         return
 
-    lines = ["🧵 Topics detectados por TAIO\n"]
+    lines = [
+        "📌 Topics detectados\n",
+        f"Chat: {telegram_chat_id}\n",
+    ]
 
-    for topic in topics[:30]:
-        topic_name = await get_topic_name(message.chat.id, topic["thread_id"])
+    for topic in topics[:50]:
+        topic_name = await get_topic_name(
+            telegram_chat_id,
+            topic["thread_id"],
+        )
+
         display_name = topic_name or f"Topic {topic['thread_id']}"
 
         lines.append(
@@ -402,8 +423,8 @@ async def cmd_topics(message: Message):
             f"{topic['messages']} mensajes"
         )
 
-    if len(topics) > 30:
-        lines.append(f"\nMostrando 30 de {len(topics)} Topics detectados.")
+    if len(topics) > 50:
+        lines.append(f"\nMostrando 50 de {len(topics)} Topics detectados.")
 
     await message.answer("\n".join(lines))
 
