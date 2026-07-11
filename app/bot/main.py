@@ -24,6 +24,7 @@ from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
 from app.repositories.topic_repository import get_topic_name, save_topic_name
+from app.services.topic_keyword_classifier import classify_topic_by_keywords
 from app.repositories.stats_repository import (
     get_basic_stats,
     get_decision_action_stats,
@@ -77,6 +78,7 @@ async def cmd_adminhelp(message: Message):
         "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
         "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
        "/general CHAT_ID [n] - Ver mensajes recientes de General\n"
+       "/triage CHAT_ID [n] - Sugerir Topics para mensajes recientes de General\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -479,6 +481,112 @@ async def cmd_general(message: Message):
         lines.append("")
 
     await message.answer("\n".join(lines))
+
+@dp.message(Command("triage"), AdminOnly())
+async def cmd_triage(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    limit = 30
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /triage CHAT_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                limit = int(parts[2])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+    else:
+        telegram_chat_id = message.chat.id
+
+        if len(parts) >= 2:
+            try:
+                limit = int(parts[1])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+
+    limit = max(1, min(limit, 50))
+
+    rows = await get_recent_general_messages_with_decisions(
+        telegram_chat_id=telegram_chat_id,
+        limit=limit,
+    )
+
+    suggestions = []
+
+    for row in rows:
+        stored_message = row["message"]
+        match = classify_topic_by_keywords(stored_message)
+
+        if match.should_move:
+            suggestions.append(
+                {
+                    "message": stored_message,
+                    "match": match,
+                }
+            )
+
+    if not suggestions:
+        await message.answer("No hay sugerencias de Topic para General.")
+        return
+
+    lines = [
+        "🚦 Triage de General\n",
+        f"Chat: {telegram_chat_id}",
+        f"Mensajes revisados: {limit}",
+        f"Sugerencias: {len(suggestions)}\n",
+    ]
+
+    for item in suggestions[:15]:
+        stored_message = item["message"]
+        match = item["match"]
+
+        topic_name = await get_topic_name(
+            telegram_chat_id,
+            match.target_thread_id,
+        )
+
+        topic_display = topic_name or f"Topic {match.target_thread_id}"
+        keywords = ", ".join(match.matched_keywords or [])
+
+        text_preview = " ".join((stored_message.text or "").split())
+        text_preview = text_preview[:160] if text_preview else "[mensaje sin texto]"
+
+        message_link = build_telegram_message_link(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=stored_message.telegram_message_id,
+        )
+
+        lines.append(
+            f"#{stored_message.telegram_message_id} · {match.confidence:.0%}\n"
+            f"Sugerencia: {topic_display}\n"
+            f"Claves: {keywords}\n"
+            f"Texto: {text_preview}"
+        )
+
+        if message_link:
+            lines.append(message_link)
+
+        lines.append("")
+
+    if len(suggestions) > 15:
+        lines.append(f"Mostrando 15 de {len(suggestions)} sugerencias.")
+
+    await message.answer("\n".join(lines))
+
 
 @dp.message(Command("whereami"), AdminOnly())
 async def cmd_whereami(message: Message):
