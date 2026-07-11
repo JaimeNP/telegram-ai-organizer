@@ -238,3 +238,33 @@ async def get_recent_decisions_by_action(
             }
             for row in rows
         ]
+    
+async def get_recent_general_messages_with_decisions(
+    telegram_chat_id: int,
+    limit: int = 10,
+) -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredMessage, StoredDecision)
+            .outerjoin(
+                StoredDecision,
+                and_(
+                    StoredMessage.telegram_chat_id == StoredDecision.telegram_chat_id,
+                    StoredMessage.telegram_message_id == StoredDecision.telegram_message_id,
+                ),
+            )
+            .where(StoredMessage.telegram_chat_id == telegram_chat_id)
+            .where(StoredMessage.thread_id.is_(None))
+            .order_by(desc(StoredMessage.date))
+            .limit(limit)
+        )
+
+        rows = result.all()
+
+        return [
+            {
+                "message": row[0],
+                "decision": row[1],
+            }
+            for row in rows
+        ]
