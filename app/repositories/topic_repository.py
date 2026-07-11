@@ -165,3 +165,17 @@ async def get_topic_name(
     )
 
     return topic.name if topic else None
+
+async def get_active_topics(
+    telegram_chat_id: int,
+) -> list[StoredTopic]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredTopic)
+            .where(StoredTopic.telegram_chat_id == telegram_chat_id)
+            .where(StoredTopic.is_closed.is_(False))
+            .where(StoredTopic.is_deleted.is_(False))
+            .order_by(StoredTopic.name)
+        )
+
+        return list(result.scalars().all())

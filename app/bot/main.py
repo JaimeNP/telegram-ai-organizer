@@ -24,6 +24,7 @@ from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
 from app.repositories.topic_repository import (
+    get_active_topics,
     get_topic_info,
     get_topic_name,
     mark_topic_closed,
@@ -70,23 +71,9 @@ def build_telegram_message_link(
 
     return None
 
-AIRBUS_TRIAGE_TOPIC_BUTTONS = [
-    (9482, "Propuestas"),
-    (21638, "Documentación"),
-    (21630, "Comité Huelga"),
-    (21634, "Comunicación"),
-    (14577, "Medios/redes"),
-    (3302, "Comunicados"),
-    (9628, "Manifestaciones"),
-    (15949, "Éxitos huelga"),
-    (20559, "Grupos Trabajo"),
-    (5338, "Eslogan"),
-    (3320, "Archivo/docs"),
-    (19265, "Jean Brice"),
-]
 
 
-def build_learning_keyboard(
+async def build_learning_keyboard(
     telegram_chat_id: int,
     telegram_message_id: int,
     target_thread_id: int,
@@ -113,7 +100,25 @@ def build_learning_keyboard(
         ],
     ]
 
-    if telegram_chat_id == -1003710195540:
+    topics = await get_active_topics(telegram_chat_id)
+
+    alternative_buttons = []
+
+    for topic in topics:
+        if topic.thread_id == target_thread_id:
+            continue
+
+        alternative_buttons.append(
+            InlineKeyboardButton(
+                text=topic.name[:28],
+                callback_data=(
+                    f"learn:move:{telegram_chat_id}:"
+                    f"{telegram_message_id}:{topic.thread_id}"
+                ),
+            )
+        )
+
+    if alternative_buttons:
         keyboard.append(
             [
                 InlineKeyboardButton(
@@ -126,26 +131,11 @@ def build_learning_keyboard(
             ]
         )
 
-        alternative_buttons = []
-
-        for thread_id, label in AIRBUS_TRIAGE_TOPIC_BUTTONS:
-            if thread_id == target_thread_id:
-                continue
-
-            alternative_buttons.append(
-                InlineKeyboardButton(
-                    text=label,
-                    callback_data=(
-                        f"learn:move:{telegram_chat_id}:"
-                        f"{telegram_message_id}:{thread_id}"
-                    ),
-                )
-            )
-
-        for index in range(0, len(alternative_buttons), 2):
+        for index in range(0, min(len(alternative_buttons), 20), 2):
             keyboard.append(alternative_buttons[index:index + 2])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
@@ -911,7 +901,7 @@ async def cmd_triagecards(message: Message):
 
         await message.answer(
             "\n".join(lines),
-            reply_markup=build_learning_keyboard(
+            reply_markup=await build_learning_keyboard(
                 telegram_chat_id=telegram_chat_id,
                 telegram_message_id=stored_message.telegram_message_id,
                 target_thread_id=target_thread_id,
@@ -1644,6 +1634,12 @@ async def capture_message(message: Message):
 
     try:
         msg = parse_message(message)
+
+        if msg.thread_id is not None:
+            await mark_topic_seen(
+                telegram_chat_id=msg.telegram_chat_id,
+                thread_id=msg.thread_id,
+            )        
 
         logging.info(
             f"Mensaje recibido: chat={msg.telegram_chat_id}, "
