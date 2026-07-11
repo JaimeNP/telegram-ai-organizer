@@ -379,16 +379,17 @@ async def cmd_topics(message: Message):
 
     lines = ["🧵 Topics detectados por TAIO\n"]
 
-    for topic in topics:
+    for topic in topics[:30]:
         topic_name = await get_topic_name(message.chat.id, topic["thread_id"])
         display_name = topic_name or f"Topic {topic['thread_id']}"
 
         lines.append(
-            f"Nombre: {display_name}\n"
-            f"Thread ID: {topic['thread_id']}\n"
-            f"Mensajes guardados: {topic['messages']}\n"
-            f"Último mensaje: {topic['last_message_at']}\n"
+            f"{display_name} · ID {topic['thread_id']} · "
+            f"{topic['messages']} mensajes"
         )
+
+    if len(topics) > 30:
+        lines.append(f"\nMostrando 30 de {len(topics)} Topics detectados.")
 
     await message.answer("\n".join(lines))
 
