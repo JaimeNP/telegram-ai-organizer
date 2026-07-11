@@ -187,3 +187,20 @@ async def get_topic_samples(
         key=lambda topic: topic["message_count"],
         reverse=True,
     )
+
+async def get_topic_message_samples(
+    telegram_chat_id: int,
+    thread_id: int,
+    limit: int = 10,
+) -> list[StoredMessage]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredMessage)
+            .where(StoredMessage.telegram_chat_id == telegram_chat_id)
+            .where(StoredMessage.thread_id == thread_id)
+            .where(StoredMessage.text.is_not(None))
+            .order_by(desc(StoredMessage.date))
+            .limit(limit)
+        )
+
+        return list(result.scalars().all())

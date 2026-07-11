@@ -28,6 +28,7 @@ from app.repositories.stats_repository import (
     get_basic_stats,
     get_decision_action_stats,
     get_recent_decisions_with_messages,
+    get_topic_message_samples,
     get_topic_samples,
     get_topic_stats,
 )
@@ -77,6 +78,7 @@ async def cmd_adminhelp(message: Message):
         "/entrycheck - Comprobación final antes de observar un grupo\n"
         "/topics [CHAT_ID] - Ver Topics detectados\n"
         "/topicsamples CHAT_ID [n] - Ver muestras por Topic, máximo 5\n"
+        "/topicdetail CHAT_ID THREAD_ID [n] - Ver muestras de un Topic concreto\n"
         "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
         "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
         "/adminhelp - Ver esta ayuda\n\n"
@@ -515,6 +517,100 @@ async def cmd_topicsamples(message: Message):
 
     await message.answer("\n".join(lines))
 
+@dp.message(Command("topicdetail"), AdminOnly())
+async def cmd_topicdetail(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    sample_limit = 5
+
+    if message.chat.type == "private":
+        if len(parts) < 3:
+            await message.answer("Uso correcto: /topicdetail CHAT_ID THREAD_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+            thread_id = int(parts[2])
+        except ValueError:
+            await message.answer("CHAT_ID y THREAD_ID deben ser números.")
+            return
+
+        if len(parts) >= 4:
+            try:
+                sample_limit = int(parts[3])
+            except ValueError:
+                await message.answer("El número de muestras debe ser un número.")
+                return
+    else:
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /topicdetail THREAD_ID [n]")
+            return
+
+        telegram_chat_id = message.chat.id
+
+        try:
+            thread_id = int(parts[1])
+        except ValueError:
+            await message.answer("THREAD_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                sample_limit = int(parts[2])
+            except ValueError:
+                await message.answer("El número de muestras debe ser un número.")
+                return
+
+    sample_limit = max(1, min(sample_limit, 10))
+
+    topic_name = await get_topic_name(
+        telegram_chat_id,
+        thread_id,
+    )
+
+    display_name = topic_name or f"Topic {thread_id}"
+
+    samples = await get_topic_message_samples(
+        telegram_chat_id=telegram_chat_id,
+        thread_id=thread_id,
+        limit=sample_limit,
+    )
+
+    if not samples:
+        await message.answer("No hay muestras para ese Topic.")
+        return
+
+    lines = [
+        "🔎 Detalle de Topic\n",
+        f"Chat: {telegram_chat_id}",
+        f"Topic: {display_name}",
+        f"Thread ID: {thread_id}",
+        f"Muestras: {len(samples)}\n",
+    ]
+
+    for sample in samples:
+        text_preview = " ".join((sample.text or "").split())
+        text_preview = text_preview[:180]
+
+        message_link = build_telegram_message_link(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=sample.telegram_message_id,
+        )
+
+        if message_link:
+            lines.append(
+                f"#{sample.telegram_message_id}: {text_preview}\n"
+                f"{message_link}\n"
+            )
+        else:
+            lines.append(
+                f"#{sample.telegram_message_id}: {text_preview}\n"
+            )
+
+    await message.answer("\n".join(lines))
 
 @dp.message(Command("settopic"), AdminOnly())
 async def cmd_settopic(message: Message):
