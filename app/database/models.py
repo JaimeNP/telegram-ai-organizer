@@ -59,8 +59,16 @@ class StoredTopic(Base):
 
     telegram_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     thread_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    is_closed: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    last_seen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 class StoredLearningExample(Base):
     __tablename__ = "learning_examples"
 

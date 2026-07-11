@@ -23,7 +23,14 @@ from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
 from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
-from app.repositories.topic_repository import get_topic_name, save_topic_name
+from app.repositories.topic_repository import (
+    get_topic_info,
+    get_topic_name,
+    mark_topic_closed,
+    mark_topic_reopened,
+    mark_topic_seen,
+    save_topic_name,
+)
 from app.services.topic_keyword_classifier import classify_topic_by_keywords
 from app.repositories.learning_repository import (
     get_message_by_telegram_id,
@@ -832,16 +839,33 @@ async def cmd_topics(message: Message):
     ]
 
     for topic in topics[:50]:
-        topic_name = await get_topic_name(
+        topic_info = await get_topic_info(
             telegram_chat_id,
             topic["thread_id"],
         )
 
-        display_name = topic_name or f"Topic {topic['thread_id']}"
+        display_name = (
+            topic_info.name
+            if topic_info
+            else f"Topic {topic['thread_id']}"
+        )
+
+        status_parts = []
+
+        if topic_info and topic_info.is_closed:
+            status_parts.append("cerrado")
+
+        if topic_info and topic_info.is_deleted:
+            status_parts.append("borrado")
+
+        status_text = ""
+
+        if status_parts:
+            status_text = " · " + ", ".join(status_parts)
 
         lines.append(
             f"{display_name} · ID {topic['thread_id']} · "
-            f"{topic['messages']} mensajes"
+            f"{topic['messages']} mensajes{status_text}"
         )
 
     if len(topics) > 50:
@@ -1121,6 +1145,57 @@ async def cmd_settopicid(message: Message):
         f"Nombre: {topic_name}"
     )
 
+async def handle_topic_service_event(message: Message) -> bool:
+    thread_id = message.message_thread_id
+
+    if thread_id is None:
+        return False
+
+    topic_created = getattr(message, "forum_topic_created", None)
+    topic_edited = getattr(message, "forum_topic_edited", None)
+    topic_closed = getattr(message, "forum_topic_closed", None)
+    topic_reopened = getattr(message, "forum_topic_reopened", None)
+
+    if topic_created:
+        topic_name = getattr(topic_created, "name", None)
+
+        await mark_topic_seen(
+            telegram_chat_id=message.chat.id,
+            thread_id=thread_id,
+            name=topic_name,
+        )
+
+        return True
+
+    if topic_edited:
+        topic_name = getattr(topic_edited, "name", None)
+
+        await mark_topic_seen(
+            telegram_chat_id=message.chat.id,
+            thread_id=thread_id,
+            name=topic_name,
+        )
+
+        return True
+
+    if topic_closed:
+        await mark_topic_closed(
+            telegram_chat_id=message.chat.id,
+            thread_id=thread_id,
+        )
+
+        return True
+
+    if topic_reopened:
+        await mark_topic_reopened(
+            telegram_chat_id=message.chat.id,
+            thread_id=thread_id,
+        )
+
+        return True
+
+    return False
+
 
 @dp.message()
 async def capture_message(message: Message):
@@ -1138,6 +1213,17 @@ async def capture_message(message: Message):
         )
         return
     
+    if not is_allowed_chat(message.chat.id):
+        logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
+        return
+    
+    if await handle_topic_service_event(message):
+        logging.info(
+            f"Evento de Topic procesado: chat={message.chat.id}, "
+            f"thread={message.message_thread_id}, message={message.message_id}"
+        )
+        return
+        
     has_useful_content = bool(
         message.text
         or message.caption
@@ -1152,9 +1238,8 @@ async def capture_message(message: Message):
             f"chat={message.chat.id}, message={message.message_id}"
         )
         return
-    if not is_allowed_chat(message.chat.id):
-        logging.warning(f"Chat no autorizado ignorado: {message.chat.id}")
-        return
+    
+
 
     try:
         msg = parse_message(message)
