@@ -42,6 +42,17 @@ class AdminOnly(BaseFilter):
     async def __call__(self, message: Message) -> bool:
         return is_admin_user(message.from_user.id if message.from_user else None)
 
+def build_telegram_message_link(
+    telegram_chat_id: int,
+    telegram_message_id: int,
+) -> str | None:
+    chat_id = str(telegram_chat_id)
+
+    if chat_id.startswith("-100"):
+        internal_chat_id = chat_id[4:]
+        return f"https://t.me/c/{internal_chat_id}/{telegram_message_id}"
+
+    return None
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
@@ -463,9 +474,20 @@ async def cmd_topicsamples(message: Message):
             text_preview = " ".join((sample.text or "").split())
             text_preview = text_preview[:100]
 
-            lines.append(
-                f"- #{sample.telegram_message_id}: {text_preview}"
+            message_link = build_telegram_message_link(
+                telegram_chat_id=telegram_chat_id,
+                telegram_message_id=sample.telegram_message_id,
             )
+
+            if message_link:
+                lines.append(
+                    f"- #{sample.telegram_message_id}: {text_preview}\n"
+                    f"  {message_link}"
+                )
+            else:
+                lines.append(
+                    f"- #{sample.telegram_message_id}: {text_preview}"
+                )
 
     if len(topics) > 10:
         lines.append(f"\nMostrando 10 de {len(topics)} Topics detectados.")
