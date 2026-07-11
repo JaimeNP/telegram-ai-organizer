@@ -25,6 +25,11 @@ from app.services.message_parser import parse_message
 from app.services.action_executor import execute_decision
 from app.repositories.topic_repository import get_topic_name, save_topic_name
 from app.services.topic_keyword_classifier import classify_topic_by_keywords
+from app.repositories.learning_repository import (
+    get_message_by_telegram_id,
+    save_learning_example,
+)
+from app.services.learning_classifier import classify_topic_by_learning
 from app.repositories.stats_repository import (
     get_basic_stats,
     get_decision_action_stats,
@@ -79,6 +84,8 @@ async def cmd_adminhelp(message: Message):
         "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
        "/general CHAT_ID [n] - Ver mensajes recientes de General\n"
        "/triage CHAT_ID [n] - Sugerir Topics para mensajes recientes de General\n"
+        "/learnmove CHAT_ID MESSAGE_ID THREAD_ID - Enseñar movimiento correcto\n"
+        "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -529,6 +536,20 @@ async def cmd_triage(message: Message):
 
     for row in rows:
         stored_message = row["message"]
+        learning_match = await classify_topic_by_learning(stored_message)
+
+        if learning_match.should_stay_in_general:
+            continue
+
+        if learning_match.should_move:
+            suggestions.append(
+                {
+                    "message": stored_message,
+                    "match": learning_match,
+                }
+            )
+            continue
+
         match = classify_topic_by_keywords(stored_message)
 
         if match.should_move:
@@ -586,6 +607,109 @@ async def cmd_triage(message: Message):
         lines.append(f"Mostrando 15 de {len(suggestions)} sugerencias.")
 
     await message.answer("\n".join(lines))
+
+@dp.message(Command("learnmove"), AdminOnly())
+async def cmd_learnmove(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    if len(parts) < 4:
+        await message.answer("Uso correcto: /learnmove CHAT_ID MESSAGE_ID THREAD_ID")
+        return
+
+    try:
+        telegram_chat_id = int(parts[1])
+        telegram_message_id = int(parts[2])
+        target_thread_id = int(parts[3])
+    except ValueError:
+        await message.answer("CHAT_ID, MESSAGE_ID y THREAD_ID deben ser números.")
+        return
+
+    stored_message = await get_message_by_telegram_id(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+    )
+
+    if not stored_message:
+        await message.answer("No encuentro ese mensaje en la base de datos.")
+        return
+
+    await save_learning_example(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+        source_thread_id=stored_message.thread_id,
+        label="move_to_topic",
+        target_thread_id=target_thread_id,
+        text=stored_message.text,
+        created_by_user_id=message.from_user.id if message.from_user else None,
+    )
+
+    topic_name = await get_topic_name(
+        telegram_chat_id,
+        target_thread_id,
+    )
+
+    topic_display = topic_name or f"Topic {target_thread_id}"
+
+    text_preview = " ".join((stored_message.text or "").split())
+    text_preview = text_preview[:160] if text_preview else "[mensaje sin texto]"
+
+    await message.answer(
+        "✅ Aprendizaje guardado\n\n"
+        f"Mensaje: #{telegram_message_id}\n"
+        f"Debe ir a: {topic_display}\n"
+        f"Texto: {text_preview}"
+    )
+
+
+@dp.message(Command("learnallow"), AdminOnly())
+async def cmd_learnallow(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    if len(parts) < 3:
+        await message.answer("Uso correcto: /learnallow CHAT_ID MESSAGE_ID")
+        return
+
+    try:
+        telegram_chat_id = int(parts[1])
+        telegram_message_id = int(parts[2])
+    except ValueError:
+        await message.answer("CHAT_ID y MESSAGE_ID deben ser números.")
+        return
+
+    stored_message = await get_message_by_telegram_id(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+    )
+
+    if not stored_message:
+        await message.answer("No encuentro ese mensaje en la base de datos.")
+        return
+
+    await save_learning_example(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+        source_thread_id=stored_message.thread_id,
+        label="allow_general",
+        target_thread_id=None,
+        text=stored_message.text,
+        created_by_user_id=message.from_user.id if message.from_user else None,
+    )
+
+    text_preview = " ".join((stored_message.text or "").split())
+    text_preview = text_preview[:160] if text_preview else "[mensaje sin texto]"
+
+    await message.answer(
+        "✅ Aprendizaje guardado\n\n"
+        f"Mensaje: #{telegram_message_id}\n"
+        "Decisión: puede quedarse en General\n"
+        f"Texto: {text_preview}"
+    )
 
 
 @dp.message(Command("whereami"), AdminOnly())

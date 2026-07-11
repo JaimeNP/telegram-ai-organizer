@@ -60,3 +60,23 @@ class StoredTopic(Base):
     telegram_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     thread_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+class StoredLearningExample(Base):
+    __tablename__ = "learning_examples"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    telegram_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    telegram_message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    source_thread_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    target_thread_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    label: Mapped[str] = mapped_column(String(50), nullable=False)
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_by_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
