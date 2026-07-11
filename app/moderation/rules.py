@@ -12,8 +12,7 @@ BANNED_WORDS = {
     "cabrón",
     "cabron",
     "hijo de puta",
-    "puta",
-    "mierda",
+
 }
 
 
