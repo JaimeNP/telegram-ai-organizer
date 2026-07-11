@@ -198,7 +198,6 @@ async def get_topic_message_samples(
             select(StoredMessage)
             .where(StoredMessage.telegram_chat_id == telegram_chat_id)
             .where(StoredMessage.thread_id == thread_id)
-            .where(StoredMessage.text.is_not(None))
             .order_by(desc(StoredMessage.date))
             .limit(limit)
         )

@@ -593,7 +593,25 @@ async def cmd_topicdetail(message: Message):
 
     for sample in samples:
         text_preview = " ".join((sample.text or "").split())
-        text_preview = text_preview[:180]
+
+        if text_preview:
+            text_preview = text_preview[:180]
+        else:
+            content_types = []
+
+            if sample.has_photo:
+                content_types.append("foto")
+
+            if sample.has_video:
+                content_types.append("vídeo")
+
+            if sample.has_document:
+                content_types.append("documento")
+
+            if not content_types:
+                content_types.append("mensaje sin texto")
+
+            text_preview = "[" + ", ".join(content_types) + "]"
 
         message_link = build_telegram_message_link(
             telegram_chat_id=telegram_chat_id,
