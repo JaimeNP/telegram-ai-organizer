@@ -44,6 +44,7 @@ from app.repositories.learning_repository import (
     get_learning_examples,
     get_message_by_telegram_id,
     get_recent_learning_examples,
+    get_learning_stats,
     save_learning_example,
 )
 from app.repositories.runtime_settings_repository import (
@@ -193,6 +194,7 @@ async def cmd_adminhelp(message: Message):
         "/learnmove CHAT_ID MESSAGE_ID THREAD_ID - Enseñar movimiento correcto\n"
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
      "/exportlearning CHAT_ID - Exportar aprendizaje y Topics a JSON\n"
+      "/learningstats CHAT_ID - Ver resumen del aprendizaje\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -530,6 +532,65 @@ async def cmd_learning(message: Message):
             f"#{example.telegram_message_id} · {decision_text}\n"
             f"Admin: {example.created_by_user_id}\n"
             f"Texto: {text_preview}"
+        )
+
+    await message.answer("\n".join(lines))
+
+
+@dp.message(Command("learningstats"), AdminOnly())
+async def cmd_learningstats(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /learningstats CHAT_ID")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+    else:
+        telegram_chat_id = message.chat.id
+
+    stats = await get_learning_stats(
+        telegram_chat_id=telegram_chat_id,
+    )
+
+    if not stats:
+        await message.answer("No hay aprendizaje registrado para ese chat.")
+        return
+
+    total = sum(row["count"] for row in stats)
+
+    lines = [
+        "📊 Estadísticas de aprendizaje\n",
+        f"Chat: {telegram_chat_id}",
+        f"Ejemplos totales: {total}\n",
+    ]
+
+    for row in stats:
+        label = row["label"]
+        target_thread_id = row["target_thread_id"]
+        count = row["count"]
+
+        if label == "allow_general":
+            display = "dejar en General"
+        elif label == "move_to_topic":
+            topic_name = await get_topic_name(
+                telegram_chat_id,
+                target_thread_id,
+            )
+            display = f"mover a {topic_name or target_thread_id}"
+        else:
+            display = label
+
+        lines.append(
+            f"{display}: {count}"
         )
 
     await message.answer("\n".join(lines))

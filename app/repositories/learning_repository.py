@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database.models import StoredLearningExample, StoredMessage
 from app.database.session import AsyncSessionLocal
@@ -102,3 +102,35 @@ async def get_recent_learning_examples(
         )
 
         return list(result.scalars().all())
+    
+async def get_learning_stats(
+    telegram_chat_id: int,
+) -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(
+                StoredLearningExample.label,
+                StoredLearningExample.target_thread_id,
+                func.count(StoredLearningExample.id),
+            )
+            .where(StoredLearningExample.telegram_chat_id == telegram_chat_id)
+            .group_by(
+                StoredLearningExample.label,
+                StoredLearningExample.target_thread_id,
+            )
+            .order_by(
+                StoredLearningExample.label,
+                StoredLearningExample.target_thread_id,
+            )
+        )
+
+        rows = result.all()
+
+        return [
+            {
+                "label": row[0],
+                "target_thread_id": row[1],
+                "count": row[2],
+            }
+            for row in rows
+        ]
