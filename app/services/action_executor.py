@@ -3,8 +3,6 @@ import logging
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 
-from app.repositories.action_log_repository import save_action_log
-
 from app.config.settings import (
     ACTION_MODE,
     ENABLE_DELETES,
@@ -14,6 +12,8 @@ from app.config.settings import (
 )
 from app.models.decision import BotDecision
 from app.models.message import TelegramMessage
+from app.repositories.action_log_repository import save_action_log
+from app.repositories.runtime_settings_repository import are_real_actions_paused
 
 
 async def execute_decision(
@@ -36,6 +36,13 @@ async def execute_decision(
         return
 
     if ACTION_MODE == "auto":
+        if await are_real_actions_paused():
+            logging.warning(
+                "Acciones reales pausadas por comando admin. "
+                f"No se ejecuta: {decision.action}"
+            )
+            return
+
         if decision.action == "would_delete_exact_duplicate":
             if not ENABLE_DELETES:
                 logging.warning("Borrado bloqueado por ENABLE_DELETES=false")
@@ -96,6 +103,7 @@ async def execute_decision(
                     status="failed",
                     detail=f"No se pudo borrar el mensaje: {error}",
                 )
+
             return
 
         if decision.action == "would_delete_duplicate":

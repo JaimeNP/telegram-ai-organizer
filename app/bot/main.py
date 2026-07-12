@@ -39,6 +39,10 @@ from app.repositories.learning_repository import (
     get_message_by_telegram_id,
     save_learning_example,
 )
+from app.repositories.runtime_settings_repository import (
+    are_real_actions_paused,
+    set_real_actions_paused,
+)
 from app.services.learning_classifier import classify_topic_by_learning
 from app.repositories.stats_repository import (
     get_basic_stats,
@@ -168,6 +172,8 @@ async def cmd_adminhelp(message: Message):
         "/readiness - Comprobar si está seguro para grupo grande\n"
         "/health - Comprobar que bot y base de datos responden\n"
       "/activestatus - Ver funciones reales activas\n"
+      "/pauseactive - Pausar acciones reales inmediatamente\n"
+        "/resumeactive - Reactivar acciones reales\n"
       "/actions CHAT_ID [n] - Ver acciones reales ejecutadas\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
@@ -307,15 +313,19 @@ async def cmd_activestatus(message: Message):
     if not active_delete_chats:
         active_delete_chats = "ninguno"
 
+    real_actions_paused = await are_real_actions_paused()
+
     real_delete_enabled = (
         ACTION_MODE == "auto"
         and ENABLE_DELETES
         and bool(ACTIVE_DELETE_CHAT_IDS)
+        and not real_actions_paused
     )
 
     lines = [
         "🛡️ Estado activo de TAIO\n",
         f"Modo de acción: {ACTION_MODE}",
+        f"Acciones reales pausadas: {'sí' if real_actions_paused else 'no'}",
         f"Chats permitidos: {allowed_chats}",
         "",
         "Funciones reales:",
@@ -335,6 +345,30 @@ async def cmd_activestatus(message: Message):
 
     await message.answer("\n".join(lines))
 
+@dp.message(Command("pauseactive"), AdminOnly())
+async def cmd_pauseactive(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    await set_real_actions_paused(True)
+
+    await message.answer(
+        "⏸️ Acciones reales pausadas.\n\n"
+        "TAIO seguirá observando y aprendiendo, pero no ejecutará borrados ni otras acciones reales."
+    )
+
+
+@dp.message(Command("resumeactive"), AdminOnly())
+async def cmd_resumeactive(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    await set_real_actions_paused(False)
+
+    await message.answer(
+        "▶️ Acciones reales reactivadas.\n\n"
+        "TAIO vuelve a usar la configuración activa de .env."
+    )
 
 @dp.message(Command("actions"), AdminOnly())
 async def cmd_actions(message: Message):

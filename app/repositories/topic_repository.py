@@ -18,7 +18,7 @@ async def save_topic_name(
             .where(StoredTopic.thread_id == thread_id)
         )
 
-        topic = result.scalar_one_or_none()
+        topic = result.scalars().first()
 
         if topic:
             topic.name = name
@@ -50,7 +50,7 @@ async def mark_topic_seen(
             .where(StoredTopic.thread_id == thread_id)
         )
 
-        topic = result.scalar_one_or_none()
+        topic = result.scalars().first()
 
         if topic:
             if name:
@@ -83,7 +83,7 @@ async def mark_topic_closed(
             .where(StoredTopic.thread_id == thread_id)
         )
 
-        topic = result.scalar_one_or_none()
+        topic = result.scalars().first()
 
         if topic:
             topic.is_closed = True
@@ -114,7 +114,7 @@ async def mark_topic_reopened(
             .where(StoredTopic.thread_id == thread_id)
         )
 
-        topic = result.scalar_one_or_none()
+        topic = result.scalars().first()
 
         if topic:
             topic.is_closed = False
@@ -149,7 +149,7 @@ async def get_topic_info(
             .where(StoredTopic.thread_id == thread_id)
         )
 
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
 
 async def get_topic_name(
@@ -178,4 +178,15 @@ async def get_active_topics(
             .order_by(StoredTopic.name)
         )
 
-        return list(result.scalars().all())
+        topics = list(result.scalars().all())
+
+    unique_topics: dict[int, StoredTopic] = {}
+
+    for topic in topics:
+        if topic.thread_id not in unique_topics:
+            unique_topics[topic.thread_id] = topic
+
+    return sorted(
+        unique_topics.values(),
+        key=lambda topic: topic.name,
+    )
