@@ -88,3 +88,20 @@ class StoredLearningExample(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+class StoredActionLog(Base):
+    __tablename__ = "action_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    telegram_chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    telegram_message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

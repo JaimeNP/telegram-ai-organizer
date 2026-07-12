@@ -18,6 +18,7 @@ from app.config.settings import (
     is_allowed_chat,
 )
 from app.database.init_db import init_db
+from app.repositories.action_log_repository import get_recent_action_logs
 from app.repositories.decision_repository import save_decision
 from app.repositories.message_repository import save_message
 from app.services.decision_engine import decide_for_message
@@ -167,6 +168,7 @@ async def cmd_adminhelp(message: Message):
         "/readiness - Comprobar si está seguro para grupo grande\n"
         "/health - Comprobar que bot y base de datos responden\n"
       "/activestatus - Ver funciones reales activas\n"
+      "/actions CHAT_ID [n] - Ver acciones reales ejecutadas\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
@@ -333,6 +335,77 @@ async def cmd_activestatus(message: Message):
 
     await message.answer("\n".join(lines))
 
+
+@dp.message(Command("actions"), AdminOnly())
+async def cmd_actions(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    limit = 20
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /actions CHAT_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                limit = int(parts[2])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+    else:
+        telegram_chat_id = message.chat.id
+
+        if len(parts) >= 2:
+            try:
+                limit = int(parts[1])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+
+    limit = max(1, min(limit, 50))
+
+    logs = await get_recent_action_logs(
+        telegram_chat_id=telegram_chat_id,
+        limit=limit,
+    )
+
+    if not logs:
+        await message.answer("No hay acciones reales registradas para ese chat.")
+        return
+
+    lines = [
+        "🧾 Acciones reales de TAIO\n",
+        f"Chat: {telegram_chat_id}",
+        f"Límite: {limit}\n",
+    ]
+
+    for log in logs:
+        message_link = build_telegram_message_link(
+            telegram_chat_id=log.telegram_chat_id,
+            telegram_message_id=log.telegram_message_id,
+        )
+
+        lines.append(
+            f"#{log.telegram_message_id} · {log.action} · {log.status}\n"
+            f"{log.detail}"
+        )
+
+        if message_link:
+            lines.append(message_link)
+
+        lines.append("")
+
+    await message.answer("\n".join(lines))
 
 @dp.message(Command("health"), AdminOnly())
 async def cmd_health(message: Message):

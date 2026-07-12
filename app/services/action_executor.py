@@ -3,6 +3,8 @@ import logging
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 
+from app.repositories.action_log_repository import save_action_log
+
 from app.config.settings import (
     ACTION_MODE,
     ENABLE_DELETES,
@@ -57,6 +59,14 @@ async def execute_decision(
                     f"message={message.telegram_message_id}"
                 )
 
+                await save_action_log(
+                    telegram_chat_id=message.telegram_chat_id,
+                    telegram_message_id=message.telegram_message_id,
+                    action=decision.action,
+                    status="executed",
+                    detail="Duplicado exacto eliminado automáticamente.",
+                )
+
                 if ENABLE_PRIVATE_NOTICES and message.user_id:
                     try:
                         await bot.send_message(
@@ -73,12 +83,19 @@ async def execute_decision(
                             f"{message.user_id}"
                         )
 
-            except TelegramAPIError:
+            except TelegramAPIError as error:
                 logging.exception(
                     "No se pudo borrar el duplicado exacto. "
                     "Comprueba que TAIO tenga permiso para eliminar mensajes."
                 )
 
+                await save_action_log(
+                    telegram_chat_id=message.telegram_chat_id,
+                    telegram_message_id=message.telegram_message_id,
+                    action=decision.action,
+                    status="failed",
+                    detail=f"No se pudo borrar el mensaje: {error}",
+                )
             return
 
         if decision.action == "would_delete_duplicate":
