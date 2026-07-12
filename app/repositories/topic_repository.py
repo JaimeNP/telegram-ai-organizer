@@ -190,3 +190,26 @@ async def get_active_topics(
         unique_topics.values(),
         key=lambda topic: topic.name,
     )
+
+async def get_topics_for_chat(
+    telegram_chat_id: int,
+) -> list[StoredTopic]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredTopic)
+            .where(StoredTopic.telegram_chat_id == telegram_chat_id)
+            .order_by(StoredTopic.name)
+        )
+
+        topics = list(result.scalars().all())
+
+    unique_topics: dict[int, StoredTopic] = {}
+
+    for topic in topics:
+        if topic.thread_id not in unique_topics:
+            unique_topics[topic.thread_id] = topic
+
+    return sorted(
+        unique_topics.values(),
+        key=lambda topic: topic.name,
+    )

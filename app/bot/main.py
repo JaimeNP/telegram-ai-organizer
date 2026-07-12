@@ -1,9 +1,11 @@
 import asyncio
 import logging
+import json
+from datetime import datetime, timezone
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import BaseFilter, Command, CommandStart
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.config.settings import (
     ACTION_MODE,
@@ -30,6 +32,7 @@ from app.repositories.topic_repository import (
     get_active_topics,
     get_topic_info,
     get_topic_name,
+    get_topics_for_chat,
     mark_topic_closed,
     mark_topic_reopened,
     mark_topic_seen,
@@ -38,8 +41,9 @@ from app.repositories.topic_repository import (
 from app.services.topic_keyword_classifier import classify_topic_by_keywords
 from app.repositories.learning_repository import (
     get_learning_example_for_message,
-    get_recent_learning_examples,
+    get_learning_examples,
     get_message_by_telegram_id,
+    get_recent_learning_examples,
     save_learning_example,
 )
 from app.repositories.runtime_settings_repository import (
@@ -188,6 +192,7 @@ async def cmd_adminhelp(message: Message):
        "/triagecards CHAT_ID [n] - Triage con botones para aprender\n"
         "/learnmove CHAT_ID MESSAGE_ID THREAD_ID - Enseñar movimiento correcto\n"
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
+     "/exportlearning CHAT_ID - Exportar aprendizaje y Topics a JSON\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -528,6 +533,88 @@ async def cmd_learning(message: Message):
         )
 
     await message.answer("\n".join(lines))
+
+@dp.message(Command("exportlearning"), AdminOnly())
+async def cmd_exportlearning(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /exportlearning CHAT_ID")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+    else:
+        telegram_chat_id = message.chat.id
+
+    examples = await get_learning_examples(
+        telegram_chat_id=telegram_chat_id,
+        limit=5000,
+    )
+
+    topics = await get_topics_for_chat(
+        telegram_chat_id=telegram_chat_id,
+    )
+
+    exported_at = datetime.now(timezone.utc)
+
+    payload = {
+        "exported_at": exported_at.isoformat(),
+        "telegram_chat_id": telegram_chat_id,
+        "topics": [
+            {
+                "thread_id": topic.thread_id,
+                "name": topic.name,
+                "is_closed": topic.is_closed,
+                "is_deleted": topic.is_deleted,
+                "last_seen_at": topic.last_seen_at.isoformat()
+                if topic.last_seen_at
+                else None,
+            }
+            for topic in topics
+        ],
+        "learning_examples": [
+            {
+                "telegram_message_id": example.telegram_message_id,
+                "source_thread_id": example.source_thread_id,
+                "target_thread_id": example.target_thread_id,
+                "label": example.label,
+                "text": example.text,
+                "created_by_user_id": example.created_by_user_id,
+                "created_at": example.created_at.isoformat(),
+            }
+            for example in examples
+        ],
+    }
+
+    safe_chat_id = str(telegram_chat_id).replace("-", "minus_")
+    timestamp = exported_at.strftime("%Y%m%d_%H%M%S")
+    file_path = f"/tmp/taio_learning_{safe_chat_id}_{timestamp}.json"
+
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(
+            payload,
+            file,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    await message.answer_document(
+        FSInputFile(file_path),
+        caption=(
+            "📦 Export de aprendizaje de TAIO\n\n"
+            f"Chat: {telegram_chat_id}\n"
+            f"Topics: {len(topics)}\n"
+            f"Ejemplos: {len(examples)}"
+        ),
+    )
 
 @dp.message(Command("health"), AdminOnly())
 async def cmd_health(message: Message):
