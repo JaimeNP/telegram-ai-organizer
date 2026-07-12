@@ -16,6 +16,8 @@ from app.config.settings import (
     ENABLE_REPOSTS,
     is_admin_user,
     is_allowed_chat,
+    AUTO_DELETE_GROUP_NOTICES_SECONDS,
+    ENABLE_GROUP_NOTICES,
 )
 from app.database.init_db import init_db
 from app.repositories.action_log_repository import get_recent_action_logs
@@ -332,6 +334,8 @@ async def cmd_activestatus(message: Message):
         f"- Borrar duplicados exactos: {'✅ activo' if real_delete_enabled else '❌ inactivo'}",
         f"- Mover mensajes a Topics: {'✅ activo' if ENABLE_REPOSTS else '❌ inactivo'}",
         f"- Avisos privados: {'✅ activo' if ENABLE_PRIVATE_NOTICES else '❌ inactivo'}",
+        f"- Avisos breves en grupo: {'✅ activo' if ENABLE_GROUP_NOTICES else '❌ inactivo'}",
+        f"- Borrado automático de avisos: {AUTO_DELETE_GROUP_NOTICES_SECONDS}s",
         "",
         f"Chats con borrado activo: {active_delete_chats}",
         "",

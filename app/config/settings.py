@@ -44,6 +44,16 @@ ENABLE_PRIVATE_NOTICES = os.getenv("ENABLE_PRIVATE_NOTICES", "false").lower() in
     "on",
 }
 
+ENABLE_GROUP_NOTICES = os.getenv("ENABLE_GROUP_NOTICES", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+AUTO_DELETE_GROUP_NOTICES_SECONDS = int(
+    os.getenv("AUTO_DELETE_GROUP_NOTICES_SECONDS", "20")
+)
 
 _raw_allowed_chat_ids = os.getenv("ALLOWED_CHAT_IDS", "").strip()
 

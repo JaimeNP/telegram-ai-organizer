@@ -1,5 +1,7 @@
 import logging
 
+import asyncio
+
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 
@@ -9,12 +11,35 @@ from app.config.settings import (
     ENABLE_PRIVATE_NOTICES,
     ENABLE_REPOSTS,
     is_active_delete_chat,
+    AUTO_DELETE_GROUP_NOTICES_SECONDS,
+    ENABLE_GROUP_NOTICES,
 )
 from app.models.decision import BotDecision
 from app.models.message import TelegramMessage
 from app.repositories.action_log_repository import save_action_log
 from app.repositories.runtime_settings_repository import are_real_actions_paused
 
+async def delete_notice_later(
+    bot: Bot,
+    chat_id: int,
+    message_id: int,
+    delay_seconds: int,
+) -> None:
+    if delay_seconds <= 0:
+        return
+
+    await asyncio.sleep(delay_seconds)
+
+    try:
+        await bot.delete_message(
+            chat_id=chat_id,
+            message_id=message_id,
+        )
+    except TelegramAPIError:
+        logging.warning(
+            "No se pudo borrar el aviso temporal de TAIO: "
+            f"chat={chat_id}, message={message_id}"
+        )
 
 async def execute_decision(
     bot: Bot,
@@ -73,6 +98,29 @@ async def execute_decision(
                     status="executed",
                     detail="Duplicado exacto eliminado automáticamente.",
                 )
+
+                if ENABLE_GROUP_NOTICES:
+                    try:
+                        notice = await bot.send_message(
+                            chat_id=message.telegram_chat_id,
+                            text=(
+                                "TAIO ha eliminado un mensaje duplicado exacto "
+                                "para mantener General limpio."
+                            ),
+                        )
+
+                        asyncio.create_task(
+                            delete_notice_later(
+                                bot=bot,
+                                chat_id=message.telegram_chat_id,
+                                message_id=notice.message_id,
+                                delay_seconds=AUTO_DELETE_GROUP_NOTICES_SECONDS,
+                            )
+                        )
+                    except TelegramAPIError:
+                        logging.warning(
+                            "No se pudo enviar aviso breve al grupo tras borrar duplicado."
+                        )
 
                 if ENABLE_PRIVATE_NOTICES and message.user_id:
                     try:
