@@ -45,6 +45,7 @@ from app.repositories.learning_repository import (
     get_message_by_telegram_id,
     get_recent_learning_examples,
     get_learning_stats,
+    delete_learning_example,
     save_learning_example,
 )
 from app.repositories.runtime_settings_repository import (
@@ -195,6 +196,7 @@ async def cmd_adminhelp(message: Message):
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
      "/exportlearning CHAT_ID - Exportar aprendizaje y Topics a JSON\n"
       "/learningstats CHAT_ID - Ver resumen del aprendizaje\n"
+     "/unlearn CHAT_ID MESSAGE_ID - Borrar aprendizaje de un mensaje\n"
        "/teachfromtopic CHAT_ID THREAD_ID [n] - Enseñar ejemplos positivos desde un Topic\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
@@ -595,6 +597,75 @@ async def cmd_learningstats(message: Message):
         )
 
     await message.answer("\n".join(lines))
+
+
+@dp.message(Command("unlearn"), AdminOnly())
+async def cmd_unlearn(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    if message.chat.type == "private":
+        if len(parts) < 3:
+            await message.answer("Uso correcto: /unlearn CHAT_ID MESSAGE_ID")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+            telegram_message_id = int(parts[2])
+        except ValueError:
+            await message.answer("CHAT_ID y MESSAGE_ID deben ser números.")
+            return
+    else:
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /unlearn MESSAGE_ID")
+            return
+
+        telegram_chat_id = message.chat.id
+
+        try:
+            telegram_message_id = int(parts[1])
+        except ValueError:
+            await message.answer("MESSAGE_ID debe ser un número.")
+            return
+
+    existing = await get_learning_example_for_message(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+    )
+
+    if existing is None:
+        await message.answer(
+            "No hay aprendizaje registrado para ese mensaje.\n\n"
+            f"Chat: {telegram_chat_id}\n"
+            f"Mensaje: #{telegram_message_id}"
+        )
+        return
+
+    deleted_count = await delete_learning_example(
+        telegram_chat_id=telegram_chat_id,
+        telegram_message_id=telegram_message_id,
+    )
+
+    if existing.label == "allow_general":
+        previous_decision = "dejar en General"
+    elif existing.label == "move_to_topic":
+        topic_name = await get_topic_name(
+            telegram_chat_id,
+            existing.target_thread_id,
+        )
+        previous_decision = f"mover a {topic_name or existing.target_thread_id}"
+    else:
+        previous_decision = existing.label
+
+    await message.answer(
+        "🧹 Aprendizaje eliminado\n\n"
+        f"Chat: {telegram_chat_id}\n"
+        f"Mensaje: #{telegram_message_id}\n"
+        f"Decisión anterior: {previous_decision}\n"
+        f"Registros eliminados: {deleted_count}"
+    )
 
 @dp.message(Command("teachfromtopic"), AdminOnly())
 async def cmd_teachfromtopic(message: Message):

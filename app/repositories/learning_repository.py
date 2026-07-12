@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.database.models import StoredLearningExample, StoredMessage
 from app.database.session import AsyncSessionLocal
@@ -134,3 +134,19 @@ async def get_learning_stats(
             }
             for row in rows
         ]
+
+async def delete_learning_example(
+    telegram_chat_id: int,
+    telegram_message_id: int,
+) -> int:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            delete(StoredLearningExample).where(
+                StoredLearningExample.telegram_chat_id == telegram_chat_id,
+                StoredLearningExample.telegram_message_id == telegram_message_id,
+            )
+        )
+
+        await session.commit()
+
+        return result.rowcount or 0
