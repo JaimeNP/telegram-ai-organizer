@@ -47,63 +47,79 @@ AIRBUS_TOPIC_KEYWORDS: dict[int, dict[str, int]] = {
         "texto": 1,
     },
     21630: {
-        "comite de huelga": 4,
-        "comité de huelga": 4,
-        "piquete": 3,
-        "piquetes": 3,
-        "carpa": 3,
-        "puerta sur": 3,
-        "san pablo": 2,
-        "tablada": 2,
+        "piquete": 4,
+        "piquetes": 4,
+        "carpa": 4,
+        "puerta sur": 4,
+        "puerta norte": 4,
+        "acceso de vehiculos": 5,
+        "acceso de vehículos": 5,
+        "me pongo en el acceso": 5,
+        "donde aparco": 4,
+        "dónde aparco": 4,
         "illescas": 3,
         "iñlescas": 3,
-        "acceso de vehiculos": 4,
-        "acceso de vehículos": 4,
+        "san pablo": 3,
+        "tablada": 3,
+        "comite de huelga": 2,
+        "comité de huelga": 2,
     },
+
     21634: {
         "prensa": 3,
         "periodista": 3,
-        "comunicacion": 3,
-        "comunicación": 3,
-        "bloomberg": 4,
-        "eldiario": 4,
-        "economista": 3,
-        "infodefensa": 4,
-        "el español": 4,
+        "periodistas": 3,
         "interlocutor": 3,
-        "contacto en la prensa": 4,
+        "contacto en la prensa": 5,
+        "nota de prensa": 4,
+        "rueda de prensa": 4,
+        "portavoz": 3,
+        "grupo comunicacion": 5,
+        "grupo comunicación": 5,
+        "comunicacion externa": 4,
+        "comunicación externa": 4,
+        "contactar con prensa": 5,
+        "hablar con prensa": 5,
     },
+
     3302: {
-        "comunicado oficial": 4,
-        "comunicado": 2,
-        "sindicato": 2,
-        "sindicatos": 2,
-        "sipa": 3,
-        "ccoo": 2,
-        "ugt": 2,
-        "cgt": 2,
+        "comunicado oficial": 5,
+        "comunicado airbus": 5,
+        "comunicado sindicatos": 5,
+        "comunicado sindical": 5,
+        "nota oficial": 5,
+        "nota informativa": 4,
+        "pdf sindicato": 4,
+        "documento oficial": 4,
     },
     9628: {
         "manifestacion": 4,
         "manifestación": 4,
         "manifestaciones": 4,
-        "marcha": 4,
         "marchas": 4,
+        "marcha a madrid": 5,
+        "marcha hasta": 5,
         "ante trabajo": 4,
         "ministerio de trabajo": 4,
         "industria y defensa": 4,
     },
     14577: {
-        "avionrevue": 4,
-        "voiceofemirates": 4,
+        "avionrevue": 5,
+        "voiceofemirates": 5,
+        "infodefensa": 5,
+        "fly-news": 5,
+        "eldiario": 4,
+        "economista": 4,
+        "el español": 4,
+        "bloomberg": 4,
         "twitter": 3,
         "x.com": 3,
         "linkedin": 3,
         "redes sociales": 3,
         "aparicion": 3,
         "aparición": 3,
-        "noticia": 1,
-        "noticias": 1,
+        "noticia": 2,
+        "noticias": 2,
         "medios": 3,
     },
     15949: {
@@ -189,9 +205,17 @@ def classify_topic_by_keywords(
             best_score = score
             best_matches = matches
 
-    if not best_thread_id or best_score < 3:
+    if not best_thread_id or best_score < 4:
+        return KeywordTopicResult(should_move=False)
+    
+    word_count = len(normalized_text.split())
+    reply_to_message_id = getattr(message, "reply_to_message_id", None)
+
+    if reply_to_message_id is not None and best_score < 7:
         return KeywordTopicResult(should_move=False)
 
+    if word_count < 12 and best_score < 6:
+        return KeywordTopicResult(should_move=False)
     confidence = min(0.92, 0.62 + (0.08 * best_score))
 
     return KeywordTopicResult(
