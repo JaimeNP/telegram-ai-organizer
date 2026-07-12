@@ -195,6 +195,7 @@ async def cmd_adminhelp(message: Message):
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
      "/exportlearning CHAT_ID - Exportar aprendizaje y Topics a JSON\n"
       "/learningstats CHAT_ID - Ver resumen del aprendizaje\n"
+       "/teachfromtopic CHAT_ID THREAD_ID [n] - Enseñar ejemplos positivos desde un Topic\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
         "/entrycheck - Comprobación final antes de observar un grupo\n"
@@ -594,6 +595,102 @@ async def cmd_learningstats(message: Message):
         )
 
     await message.answer("\n".join(lines))
+
+@dp.message(Command("teachfromtopic"), AdminOnly())
+async def cmd_teachfromtopic(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    sample_limit = 10
+
+    if message.chat.type == "private":
+        if len(parts) < 3:
+            await message.answer("Uso correcto: /teachfromtopic CHAT_ID THREAD_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+            thread_id = int(parts[2])
+        except ValueError:
+            await message.answer("CHAT_ID y THREAD_ID deben ser números.")
+            return
+
+        if len(parts) >= 4:
+            try:
+                sample_limit = int(parts[3])
+            except ValueError:
+                await message.answer("El número de ejemplos debe ser un número.")
+                return
+    else:
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /teachfromtopic THREAD_ID [n]")
+            return
+
+        telegram_chat_id = message.chat.id
+
+        try:
+            thread_id = int(parts[1])
+        except ValueError:
+            await message.answer("THREAD_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                sample_limit = int(parts[2])
+            except ValueError:
+                await message.answer("El número de ejemplos debe ser un número.")
+                return
+
+    sample_limit = max(1, min(sample_limit, 30))
+
+    samples = await get_topic_message_samples(
+        telegram_chat_id=telegram_chat_id,
+        thread_id=thread_id,
+        limit=sample_limit * 3,
+    )
+
+    topic_name = await get_topic_name(
+        telegram_chat_id,
+        thread_id,
+    )
+
+    topic_display = topic_name or f"Topic {thread_id}"
+
+    saved = 0
+    skipped = 0
+
+    for sample in samples:
+        text = " ".join((sample.text or "").split())
+
+        if len(text) < 30:
+            skipped += 1
+            continue
+
+        await save_learning_example(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=sample.telegram_message_id,
+            source_thread_id=sample.thread_id,
+            label="move_to_topic",
+            target_thread_id=thread_id,
+            text=sample.text,
+            created_by_user_id=message.from_user.id if message.from_user else None,
+        )
+
+        saved += 1
+
+        if saved >= sample_limit:
+            break
+
+    await message.answer(
+        "✅ Aprendizaje desde Topic completado\n\n"
+        f"Chat: {telegram_chat_id}\n"
+        f"Topic: {topic_display}\n"
+        f"Thread ID: {thread_id}\n"
+        f"Ejemplos guardados: {saved}\n"
+        f"Mensajes ignorados: {skipped}"
+    )
 
 @dp.message(Command("exportlearning"), AdminOnly())
 async def cmd_exportlearning(message: Message):
