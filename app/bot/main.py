@@ -7,13 +7,13 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from app.config.settings import (
     ACTION_MODE,
+    ACTIVE_DELETE_CHAT_IDS,
     ADMIN_USER_IDS,
     ALLOWED_CHAT_IDS,
     BOT_TOKEN,
     ENABLE_DELETES,
     ENABLE_PRIVATE_NOTICES,
     ENABLE_REPOSTS,
-    SIMULATION_MODE,
     is_admin_user,
     is_allowed_chat,
 )
@@ -166,6 +166,7 @@ async def cmd_adminhelp(message: Message):
         "/status - Ver configuración actual del bot\n"
         "/readiness - Comprobar si está seguro para grupo grande\n"
         "/health - Comprobar que bot y base de datos responden\n"
+      "/activestatus - Ver funciones reales activas\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
@@ -289,6 +290,49 @@ async def cmd_readiness(message: Message):
         f"({len(ADMIN_USER_IDS)})\n\n"
         f"Resultado: {'✅ LISTO PARA OBSERVAR SIN ACTUAR' if ready else '❌ NO LISTO'}"
     )
+
+
+@dp.message(Command("activestatus"), AdminOnly())
+async def cmd_activestatus(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    allowed_chats = ", ".join(str(chat_id) for chat_id in sorted(ALLOWED_CHAT_IDS))
+    active_delete_chats = ", ".join(
+        str(chat_id) for chat_id in sorted(ACTIVE_DELETE_CHAT_IDS)
+    )
+
+    if not active_delete_chats:
+        active_delete_chats = "ninguno"
+
+    real_delete_enabled = (
+        ACTION_MODE == "auto"
+        and ENABLE_DELETES
+        and bool(ACTIVE_DELETE_CHAT_IDS)
+    )
+
+    lines = [
+        "🛡️ Estado activo de TAIO\n",
+        f"Modo de acción: {ACTION_MODE}",
+        f"Chats permitidos: {allowed_chats}",
+        "",
+        "Funciones reales:",
+        f"- Borrar duplicados exactos: {'✅ activo' if real_delete_enabled else '❌ inactivo'}",
+        f"- Mover mensajes a Topics: {'✅ activo' if ENABLE_REPOSTS else '❌ inactivo'}",
+        f"- Avisos privados: {'✅ activo' if ENABLE_PRIVATE_NOTICES else '❌ inactivo'}",
+        "",
+        f"Chats con borrado activo: {active_delete_chats}",
+        "",
+        "Regla actual de borrado:",
+        "- Solo duplicados exactos",
+        "- Mismo usuario",
+        "- En General",
+        "- Ventana de 10 minutos",
+        "- Texto mínimo de 20 caracteres",
+    ]
+
+    await message.answer("\n".join(lines))
+
 
 @dp.message(Command("health"), AdminOnly())
 async def cmd_health(message: Message):
