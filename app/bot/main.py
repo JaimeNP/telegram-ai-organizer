@@ -34,6 +34,7 @@ from app.repositories.topic_repository import (
 )
 from app.services.topic_keyword_classifier import classify_topic_by_keywords
 from app.repositories.learning_repository import (
+    get_learning_example_for_message,
     get_message_by_telegram_id,
     save_learning_example,
 )
@@ -660,6 +661,15 @@ async def cmd_triage(message: Message):
 
     for row in rows:
         stored_message = row["message"]
+
+        reviewed = await get_learning_example_for_message(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=stored_message.telegram_message_id,
+        )
+
+        if reviewed:
+            continue
+
         learning_match = await classify_topic_by_learning(stored_message)
 
         if learning_match.should_stay_in_general:
@@ -812,6 +822,14 @@ async def cmd_triagecards(message: Message):
 
     for row in rows:
         stored_message = row["message"]
+
+        reviewed = await get_learning_example_for_message(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=stored_message.telegram_message_id,
+        )
+
+        if reviewed:
+            continue
 
         learning_match = await classify_topic_by_learning(stored_message)
 

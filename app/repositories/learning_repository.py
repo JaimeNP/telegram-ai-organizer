@@ -75,3 +75,16 @@ async def get_learning_examples(
         )
 
         return list(result.scalars().all())
+    
+async def get_learning_example_for_message(
+    telegram_chat_id: int,
+    telegram_message_id: int,
+) -> StoredLearningExample | None:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredLearningExample)
+            .where(StoredLearningExample.telegram_chat_id == telegram_chat_id)
+            .where(StoredLearningExample.telegram_message_id == telegram_message_id)
+        )
+
+        return result.scalar_one_or_none()
