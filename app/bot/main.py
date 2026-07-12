@@ -38,6 +38,7 @@ from app.repositories.topic_repository import (
 from app.services.topic_keyword_classifier import classify_topic_by_keywords
 from app.repositories.learning_repository import (
     get_learning_example_for_message,
+    get_recent_learning_examples,
     get_message_by_telegram_id,
     save_learning_example,
 )
@@ -177,6 +178,7 @@ async def cmd_adminhelp(message: Message):
       "/pauseactive - Pausar acciones reales inmediatamente\n"
         "/resumeactive - Reactivar acciones reales\n"
       "/actions CHAT_ID [n] - Ver acciones reales ejecutadas\n"
+     "/learning CHAT_ID [n] - Ver aprendizaje reciente de admins\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
         "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
@@ -442,6 +444,88 @@ async def cmd_actions(message: Message):
             lines.append(message_link)
 
         lines.append("")
+
+    await message.answer("\n".join(lines))
+
+
+@dp.message(Command("learning"), AdminOnly())
+async def cmd_learning(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    parts = (message.text or "").split()
+
+    limit = 10
+
+    if message.chat.type == "private":
+        if len(parts) < 2:
+            await message.answer("Uso correcto: /learning CHAT_ID [n]")
+            return
+
+        try:
+            telegram_chat_id = int(parts[1])
+        except ValueError:
+            await message.answer("El CHAT_ID debe ser un número.")
+            return
+
+        if len(parts) >= 3:
+            try:
+                limit = int(parts[2])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+    else:
+        telegram_chat_id = message.chat.id
+
+        if len(parts) >= 2:
+            try:
+                limit = int(parts[1])
+            except ValueError:
+                await message.answer("El límite debe ser un número.")
+                return
+
+    limit = max(1, min(limit, 20))
+
+    examples = await get_recent_learning_examples(
+        telegram_chat_id=telegram_chat_id,
+        limit=limit,
+    )
+
+    if not examples:
+        await message.answer("No hay ejemplos de aprendizaje para ese chat.")
+        return
+
+    lines = [
+        "🧠 Aprendizaje reciente de TAIO\n",
+        f"Chat: {telegram_chat_id}",
+        f"Límite: {limit}\n",
+    ]
+
+    for example in examples:
+        if example.label == "move_to_topic":
+            topic_name = await get_topic_name(
+                telegram_chat_id,
+                example.target_thread_id,
+            )
+            decision_text = f"mover a {topic_name or example.target_thread_id}"
+        elif example.label == "allow_general":
+            decision_text = "dejar en General"
+        else:
+            decision_text = example.label
+
+        text_preview = " ".join((example.text or "").split())
+        text_preview = text_preview[:70] if text_preview else "[mensaje sin texto]"
+
+        message_link = build_telegram_message_link(
+            telegram_chat_id=telegram_chat_id,
+            telegram_message_id=example.telegram_message_id,
+        )
+
+        lines.append(
+            f"#{example.telegram_message_id} · {decision_text}\n"
+            f"Admin: {example.created_by_user_id}\n"
+            f"Texto: {text_preview}"
+        )
 
     await message.answer("\n".join(lines))
 

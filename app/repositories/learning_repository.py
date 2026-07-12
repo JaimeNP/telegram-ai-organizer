@@ -88,3 +88,17 @@ async def get_learning_example_for_message(
         )
 
         return result.scalar_one_or_none()
+
+async def get_recent_learning_examples(
+    telegram_chat_id: int,
+    limit: int = 20,
+) -> list[StoredLearningExample]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(StoredLearningExample)
+            .where(StoredLearningExample.telegram_chat_id == telegram_chat_id)
+            .order_by(StoredLearningExample.created_at.desc())
+            .limit(limit)
+        )
+
+        return list(result.scalars().all())
