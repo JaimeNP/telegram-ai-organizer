@@ -1674,7 +1674,7 @@ async def capture_message(message: Message):
 
         decision = await decide_for_message(msg)
         await save_decision(msg, decision)
-        await execute_decision(msg, decision)
+        await execute_decision(bot, msg, decision)
 
         logging.info(
             f"Decisión simulada: message={msg.telegram_message_id}, "

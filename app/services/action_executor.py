@@ -1,16 +1,21 @@
 import logging
 
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError
+
 from app.config.settings import (
     ACTION_MODE,
     ENABLE_DELETES,
     ENABLE_PRIVATE_NOTICES,
     ENABLE_REPOSTS,
+    is_active_delete_chat,
 )
 from app.models.decision import BotDecision
 from app.models.message import TelegramMessage
 
 
 async def execute_decision(
+    bot: Bot,
     message: TelegramMessage,
     decision: BotDecision,
 ) -> None:
@@ -29,8 +34,57 @@ async def execute_decision(
         return
 
     if ACTION_MODE == "auto":
-        if decision.action == "would_delete_duplicate" and not ENABLE_DELETES:
-            logging.warning("Borrado bloqueado por configuración ENABLE_DELETES=false")
+        if decision.action == "would_delete_exact_duplicate":
+            if not ENABLE_DELETES:
+                logging.warning("Borrado bloqueado por ENABLE_DELETES=false")
+                return
+
+            if not is_active_delete_chat(message.telegram_chat_id):
+                logging.warning(
+                    "Borrado bloqueado: chat no incluido en ACTIVE_DELETE_CHAT_IDS"
+                )
+                return
+
+            try:
+                await bot.delete_message(
+                    chat_id=message.telegram_chat_id,
+                    message_id=message.telegram_message_id,
+                )
+
+                logging.warning(
+                    "Mensaje duplicado exacto eliminado: "
+                    f"chat={message.telegram_chat_id}, "
+                    f"message={message.telegram_message_id}"
+                )
+
+                if ENABLE_PRIVATE_NOTICES and message.user_id:
+                    try:
+                        await bot.send_message(
+                            chat_id=message.user_id,
+                            text=(
+                                "TAIO ha eliminado un mensaje duplicado exacto "
+                                "que acababas de enviar en General.\n\n"
+                                "No es una sanción; solo ayuda a mantener limpio el grupo."
+                            ),
+                        )
+                    except TelegramAPIError:
+                        logging.warning(
+                            "No se pudo enviar aviso privado al usuario "
+                            f"{message.user_id}"
+                        )
+
+            except TelegramAPIError:
+                logging.exception(
+                    "No se pudo borrar el duplicado exacto. "
+                    "Comprueba que TAIO tenga permiso para eliminar mensajes."
+                )
+
+            return
+
+        if decision.action == "would_delete_duplicate":
+            logging.warning(
+                "Duplicado no exacto detectado, pero el borrado automático está bloqueado."
+            )
             return
 
         if decision.action.startswith("would_move") and not ENABLE_REPOSTS:
@@ -38,8 +92,11 @@ async def execute_decision(
             return
 
         if not ENABLE_PRIVATE_NOTICES:
-            logging.warning("Avisos privados bloqueados por configuración ENABLE_PRIVATE_NOTICES=false")
+            logging.warning(
+                "Avisos privados bloqueados por configuración ENABLE_PRIVATE_NOTICES=false"
+            )
 
         logging.warning(
-            "Modo auto activo, pero todavía no hay acciones reales implementadas."
+            "Modo auto activo, pero esta acción no tiene ejecución real implementada: "
+            f"{decision.action}"
         )

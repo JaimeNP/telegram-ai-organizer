@@ -78,3 +78,18 @@ def is_admin_user(user_id: int | None) -> bool:
         return False
 
     return user_id in ADMIN_USER_IDS
+
+_raw_active_delete_chat_ids = os.getenv("ACTIVE_DELETE_CHAT_IDS", "").strip()
+
+ACTIVE_DELETE_CHAT_IDS: set[int] = set()
+
+if _raw_active_delete_chat_ids:
+    ACTIVE_DELETE_CHAT_IDS = {
+        int(chat_id.strip())
+        for chat_id in _raw_active_delete_chat_ids.split(",")
+        if chat_id.strip()
+    }
+
+
+def is_active_delete_chat(chat_id: int) -> bool:
+    return chat_id in ACTIVE_DELETE_CHAT_IDS
