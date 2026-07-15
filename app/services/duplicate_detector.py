@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
+
 from datetime import timedelta
 
 import re
@@ -96,6 +97,38 @@ def extract_normalized_urls(text: str) -> set[str]:
 
 def text_without_urls(text: str) -> str:
     return " ".join(URL_PATTERN.sub("", text or "").split())
+
+def token_set(text: str) -> set[str]:
+    return {
+        token
+        for token in normalize_text(text).split()
+        if len(token) >= 4
+    }
+
+
+def token_overlap_ratio(first_text: str, second_text: str) -> float:
+    first_tokens = token_set(first_text)
+    second_tokens = token_set(second_text)
+
+    if not first_tokens or not second_tokens:
+        return 0.0
+
+    intersection = len(first_tokens.intersection(second_tokens))
+    smaller = min(len(first_tokens), len(second_tokens))
+
+    return intersection / smaller
+
+
+def length_ratio_ok(first_text: str, second_text: str) -> bool:
+    first_length = len(normalize_text(first_text))
+    second_length = len(normalize_text(second_text))
+
+    if first_length == 0 or second_length == 0:
+        return False
+
+    ratio = first_length / second_length
+
+    return 0.75 <= ratio <= 1.35
 
 def normalize_text(text: str | None) -> str:
     if not text:
@@ -252,5 +285,75 @@ async def detect_general_duplicate(
                     previous.telegram_message_id,
                     previous.text,
                 )
+
+    return DuplicateResult(False)
+
+async def detect_similar_general_duplicate(
+    message: TelegramMessage,
+    window_hours: int = 72,
+    min_text_chars: int = 160,
+    similarity_threshold: float = 0.96,
+    token_overlap_threshold: float = 0.88,
+) -> DuplicateResult:
+    if message.thread_id is not None:
+        return DuplicateResult(False)
+
+    if message.user_id == 0:
+        return DuplicateResult(False)
+
+    reply_to_message_id = getattr(message, "reply_to_message_id", None)
+    if reply_to_message_id is not None:
+        return DuplicateResult(False)
+
+    current_text = message.text or ""
+    current_normalized_text = normalize_text(current_text)
+
+    if len(current_normalized_text) < min_text_chars:
+        return DuplicateResult(False)
+
+    recent_messages = await get_recent_text_messages(
+        message.telegram_chat_id,
+        limit=300,
+    )
+
+    window_start = message.date - timedelta(hours=window_hours)
+
+    for previous in recent_messages:
+        if previous.telegram_message_id >= message.telegram_message_id:
+            continue
+
+        if previous.thread_id is not None:
+            continue
+
+        if previous.date < window_start:
+            continue
+
+        previous_text = previous.text or ""
+        previous_normalized_text = normalize_text(previous_text)
+
+        if len(previous_normalized_text) < min_text_chars:
+            continue
+
+        if not length_ratio_ok(current_text, previous_text):
+            continue
+
+        overlap = token_overlap_ratio(current_text, previous_text)
+
+        if overlap < token_overlap_threshold:
+            continue
+
+        similarity = SequenceMatcher(
+            None,
+            current_normalized_text,
+            previous_normalized_text,
+        ).ratio()
+
+        if similarity >= similarity_threshold:
+            return DuplicateResult(
+                True,
+                similarity,
+                previous.telegram_message_id,
+                previous.text,
+            )
 
     return DuplicateResult(False)

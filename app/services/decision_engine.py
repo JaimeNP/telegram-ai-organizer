@@ -6,6 +6,7 @@ from app.services.duplicate_detector import (
     detect_duplicate,
     detect_exact_duplicate,
     detect_general_duplicate,
+    detect_similar_general_duplicate,
 )
 from app.services.flood_detector import detect_flood
 from app.services.learning_classifier import classify_topic_by_learning
@@ -50,6 +51,19 @@ async def decide_for_message(message: TelegramMessage) -> BotDecision:
                 f"Mensaje original: {exact_duplicate.original_message_id}."
             ),
             confidence=0.99,
+            simulated=True,
+        )
+
+    similar_general_duplicate = await detect_similar_general_duplicate(message)
+
+    if similar_general_duplicate.is_duplicate:
+        return BotDecision(
+            action="would_delete_similar_general_duplicate",
+            confidence=similar_general_duplicate.similarity,
+            reason=(
+                "Mensaje muy parecido a otro anterior en General. "
+                f"Mensaje original: #{similar_general_duplicate.original_message_id}"
+            ),
             simulated=True,
         )
 

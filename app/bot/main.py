@@ -400,6 +400,12 @@ async def cmd_activestatus(message: Message):
         "- Ignora enlaces de Telegram\n"
         "- No borra respuestas\n"
         "- No borra mensajes con mucho texto propio alrededor del enlace"
+        "3. Mensajes muy parecidos:"
+        "- En General"
+        "- Texto largo"
+        "- Similitud muy alta"
+        "- No borra respuestas"
+        "- No toca Topics"
     ]
 
     await message.answer("\n".join(lines))

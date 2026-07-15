@@ -68,10 +68,11 @@ async def execute_decision(
             )
             return
 
-        if decision.action in {"would_delete_exact_duplicate", "would_delete_general_duplicate"}:
-            if not ENABLE_DELETES:
-                logging.warning("Borrado bloqueado por ENABLE_DELETES=false")
-                return
+        if decision.action in {
+    "would_delete_exact_duplicate",
+    "would_delete_general_duplicate",
+    "would_delete_similar_general_duplicate",
+}:
 
             if not is_active_delete_chat(message.telegram_chat_id):
                 logging.warning(
@@ -79,11 +80,39 @@ async def execute_decision(
                 )
                 return
 
-            detail = (
-                "Duplicado exacto eliminado automáticamente."
-                if decision.action == "would_delete_exact_duplicate"
-                else "Duplicado en General eliminado automáticamente."
-            )
+            if decision.action == "would_delete_exact_duplicate":
+                detail = "Duplicado exacto eliminado automáticamente."
+                notice_text = (
+                    "TAIO ha eliminado un mensaje duplicado exacto "
+                    "para mantener General limpio."
+                )
+                private_notice_text = (
+                    "TAIO ha eliminado un mensaje duplicado exacto "
+                    "que acababas de enviar en General.\n\n"
+                    "No es una sanción; solo ayuda a mantener limpio el grupo."
+                )
+            elif decision.action == "would_delete_general_duplicate":
+                detail = "Duplicado en General eliminado automáticamente."
+                notice_text = (
+                    "TAIO ha eliminado un mensaje repetido en General "
+                    "para mantener el grupo limpio."
+                )
+                private_notice_text = (
+                    "TAIO ha eliminado un mensaje repetido "
+                    "que acababas de enviar en General.\n\n"
+                    "No es una sanción; solo ayuda a mantener limpio el grupo."
+                )
+            else:
+                detail = "Mensaje muy parecido eliminado automáticamente en General."
+                notice_text = (
+                    "TAIO ha eliminado un mensaje muy parecido a otro anterior "
+                    "para mantener General limpio."
+                )
+                private_notice_text = (
+                    "TAIO ha eliminado un mensaje muy parecido a otro anterior "
+                    "que acababas de enviar en General.\n\n"
+                    "No es una sanción; solo ayuda a mantener limpio el grupo."
+                )
 
             notice_text = (
                 "TAIO ha eliminado un mensaje duplicado exacto "
