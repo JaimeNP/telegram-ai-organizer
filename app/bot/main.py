@@ -399,12 +399,12 @@ async def cmd_activestatus(message: Message):
         "- Puede ser de otro usuario\n"
         "- Ignora enlaces de Telegram\n"
         "- No borra respuestas\n"
-        "- No borra mensajes con mucho texto propio alrededor del enlace"
-        "3. Mensajes muy parecidos:"
-        "- En General"
-        "- Texto largo"
-        "- Similitud muy alta"
-        "- No borra respuestas"
+        "- No borra mensajes con mucho texto propio alrededor del enlace\n\n"
+        "3. Mensajes muy parecidos seguros:\n"
+        "- En General\n"
+        "- Texto largo\n"
+        "- Similitud muy alta\n"
+        "- No borra respuestas\n"
         "- No toca Topics"
     ]
 
