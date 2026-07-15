@@ -178,7 +178,8 @@ async def cmd_handover(message: Message):
         "Estado actual:\n"
         "- TAIO vive en la Raspberry Pi.\n"
         "- TAIO observa el grupo Airbus y aprende de los admins.\n"
-        "- TAIO puede borrar SOLO duplicados exactos.\n"
+        "- TAIO puede borrar duplicados exactos y duplicados generales seguros.\n"
+        "- Ejemplo: mismo enlace repetido en General.\n"
         "- TAIO NO mueve mensajes automáticamente.\n"
         "- TAIO NO borra mensajes parecidos.\n"
         "- TAIO NO manda avisos privados.\n\n"
@@ -387,12 +388,18 @@ async def cmd_activestatus(message: Message):
         "",
         f"Chats con borrado activo: {active_delete_chats}",
         "",
-        "Regla actual de borrado:",
-        "- Solo duplicados exactos",
-        "- Mismo usuario",
-        "- En General",
-        "- Ventana de 10 minutos",
-        "- Texto mínimo de 20 caracteres",
+        "\nReglas actuales de borrado:\n"
+        "1. Duplicados exactos del mismo usuario:\n"
+        "- En General\n"
+        "- Ventana de 10 minutos\n"
+        "- Texto mínimo de 20 caracteres\n\n"
+        "2. Duplicados generales seguros:\n"
+        "- En General\n"
+        "- Misma URL repetida o mismo texto largo exacto\n"
+        "- Puede ser de otro usuario\n"
+        "- Ignora enlaces de Telegram\n"
+        "- No borra respuestas\n"
+        "- No borra mensajes con mucho texto propio alrededor del enlace"
     ]
 
     await message.answer("\n".join(lines))
