@@ -191,6 +191,7 @@ async def cmd_adminhelp(message: Message):
         "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
        "/general CHAT_ID [n] - Ver mensajes recientes de General\n"
        "/triage CHAT_ID [n] - Sugerir Topics para mensajes recientes de General\n"
+        "/review [n] - Revisar mensajes pendientes de Airbus con botones\n"
        "/triagecards CHAT_ID [n] - Triage con botones para aprender\n"
         "/learnmove CHAT_ID MESSAGE_ID THREAD_ID - Enseñar movimiento correcto\n"
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
@@ -1329,7 +1330,7 @@ async def cmd_triage(message: Message):
 
     await message.answer("\n".join(lines))
 
-
+@dp.message(Command("review"), AdminOnly())
 @dp.message(Command("triagecards"), AdminOnly())
 async def cmd_triagecards(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
@@ -1339,16 +1340,33 @@ async def cmd_triagecards(message: Message):
 
     limit = 5
 
-    if message.chat.type == "private":
-        if len(parts) < 2:
-            await message.answer("Uso correcto: /triagecards CHAT_ID [n]")
-            return
+    command = parts[0].split("@")[0].lower() if parts else ""
 
-        try:
-            telegram_chat_id = int(parts[1])
-        except ValueError:
-            await message.answer("El CHAT_ID debe ser un número.")
-            return
+    if message.chat.type == "private":
+        if command == "/review" and len(parts) < 2:
+            telegram_chat_id = -1003710195540
+        elif command == "/review" and len(parts) == 2:
+            try:
+                maybe_number = int(parts[1])
+            except ValueError:
+                await message.answer("El número de tarjetas debe ser un número.")
+                return
+
+            if maybe_number < 0:
+                telegram_chat_id = maybe_number
+            else:
+                telegram_chat_id = -1003710195540
+                limit = maybe_number
+        else:
+            if len(parts) < 2:
+                await message.answer("Uso correcto: /triagecards CHAT_ID [n] o /review [n]")
+                return
+
+            try:
+                telegram_chat_id = int(parts[1])
+            except ValueError:
+                await message.answer("El CHAT_ID debe ser un número.")
+                return
 
         if len(parts) >= 3:
             try:
