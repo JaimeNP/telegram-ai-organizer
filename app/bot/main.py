@@ -1385,6 +1385,12 @@ async def cmd_triagecards(message: Message):
                 return
 
     limit = max(1, min(limit, 10))
+    
+    await message.answer(
+        "🔎 Buscando mensajes para revisar...\n"
+        f"Chat: {telegram_chat_id}\n"
+        f"Límite: {limit}"
+    )
 
     rows = await get_recent_general_messages_with_decisions(
         telegram_chat_id=telegram_chat_id,
