@@ -2,7 +2,11 @@ from app.models.decision import BotDecision
 from app.models.message import TelegramMessage
 from app.moderation.rules import check_message_rules
 from app.repositories.topic_repository import get_topic_name
-from app.services.duplicate_detector import detect_duplicate, detect_exact_duplicate
+from app.services.duplicate_detector import (
+    detect_duplicate,
+    detect_exact_duplicate,
+    detect_general_duplicate,
+)
 from app.services.flood_detector import detect_flood
 from app.services.learning_classifier import classify_topic_by_learning
 from app.services.link_detector import detect_links
@@ -46,6 +50,19 @@ async def decide_for_message(message: TelegramMessage) -> BotDecision:
                 f"Mensaje original: {exact_duplicate.original_message_id}."
             ),
             confidence=0.99,
+            simulated=True,
+        )
+
+    general_duplicate = await detect_general_duplicate(message)
+
+    if general_duplicate.is_duplicate:
+        return BotDecision(
+            action="would_delete_general_duplicate",
+            confidence=general_duplicate.similarity,
+            reason=(
+                "Duplicado en General detectado. "
+                f"Mensaje original: #{general_duplicate.original_message_id}"
+            ),
             simulated=True,
         )
 

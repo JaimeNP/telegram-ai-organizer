@@ -68,7 +68,7 @@ async def execute_decision(
             )
             return
 
-        if decision.action == "would_delete_exact_duplicate":
+        if decision.action in {"would_delete_exact_duplicate", "would_delete_general_duplicate"}:
             if not ENABLE_DELETES:
                 logging.warning("Borrado bloqueado por ENABLE_DELETES=false")
                 return
@@ -79,6 +79,30 @@ async def execute_decision(
                 )
                 return
 
+            detail = (
+                "Duplicado exacto eliminado automáticamente."
+                if decision.action == "would_delete_exact_duplicate"
+                else "Duplicado en General eliminado automáticamente."
+            )
+
+            notice_text = (
+                "TAIO ha eliminado un mensaje duplicado exacto "
+                "para mantener General limpio."
+                if decision.action == "would_delete_exact_duplicate"
+                else "TAIO ha eliminado un mensaje repetido en General "
+                "para mantener el grupo limpio."
+            )
+
+            private_notice_text = (
+                "TAIO ha eliminado un mensaje duplicado exacto "
+                "que acababas de enviar en General.\n\n"
+                "No es una sanción; solo ayuda a mantener limpio el grupo."
+                if decision.action == "would_delete_exact_duplicate"
+                else "TAIO ha eliminado un mensaje repetido "
+                "que acababas de enviar en General.\n\n"
+                "No es una sanción; solo ayuda a mantener limpio el grupo."
+            )
+
             try:
                 await bot.delete_message(
                     chat_id=message.telegram_chat_id,
@@ -86,9 +110,10 @@ async def execute_decision(
                 )
 
                 logging.warning(
-                    "Mensaje duplicado exacto eliminado: "
+                    "Mensaje duplicado eliminado: "
                     f"chat={message.telegram_chat_id}, "
-                    f"message={message.telegram_message_id}"
+                    f"message={message.telegram_message_id}, "
+                    f"action={decision.action}"
                 )
 
                 await save_action_log(
@@ -96,17 +121,14 @@ async def execute_decision(
                     telegram_message_id=message.telegram_message_id,
                     action=decision.action,
                     status="executed",
-                    detail="Duplicado exacto eliminado automáticamente.",
+                    detail=detail,
                 )
 
                 if ENABLE_GROUP_NOTICES:
                     try:
                         notice = await bot.send_message(
                             chat_id=message.telegram_chat_id,
-                            text=(
-                                "TAIO ha eliminado un mensaje duplicado exacto "
-                                "para mantener General limpio."
-                            ),
+                            text=notice_text,
                         )
 
                         asyncio.create_task(
@@ -126,11 +148,7 @@ async def execute_decision(
                     try:
                         await bot.send_message(
                             chat_id=message.user_id,
-                            text=(
-                                "TAIO ha eliminado un mensaje duplicado exacto "
-                                "que acababas de enviar en General.\n\n"
-                                "No es una sanción; solo ayuda a mantener limpio el grupo."
-                            ),
+                            text=private_notice_text,
                         )
                     except TelegramAPIError:
                         logging.warning(
@@ -140,7 +158,7 @@ async def execute_decision(
 
             except TelegramAPIError as error:
                 logging.exception(
-                    "No se pudo borrar el duplicado exacto. "
+                    "No se pudo borrar el duplicado. "
                     "Comprueba que TAIO tenga permiso para eliminar mensajes."
                 )
 
