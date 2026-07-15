@@ -168,6 +168,40 @@ async def cmd_myid(message: Message):
         "Pásale este User ID al administrador de TAIO para que pueda darte acceso."
     )
 
+@dp.message(Command("handover"), AdminOnly())
+async def cmd_handover(message: Message):
+    if not is_admin_user(message.from_user.id if message.from_user else None):
+        return
+
+    await message.answer(
+        "🤝 Guía rápida de TAIO para admins\n\n"
+        "Estado actual:\n"
+        "- TAIO vive en la Raspberry Pi.\n"
+        "- TAIO observa el grupo Airbus y aprende de los admins.\n"
+        "- TAIO puede borrar SOLO duplicados exactos.\n"
+        "- TAIO NO mueve mensajes automáticamente.\n"
+        "- TAIO NO borra mensajes parecidos.\n"
+        "- TAIO NO manda avisos privados.\n\n"
+        "Comandos diarios:\n"
+        "/review 5 - Revisar mensajes de General con botones\n"
+        "/learningstats -1003710195540 - Ver aprendizaje acumulado\n"
+        "/health - Comprobar que el bot y la base de datos responden\n"
+        "/activestatus - Ver qué acciones reales están activas\n\n"
+        "Emergencia:\n"
+        "/pauseactive - Pausar acciones reales inmediatamente\n"
+        "/resumeactive - Reanudar acciones reales\n"
+        "/actions -1003710195540 10 - Ver últimas acciones reales\n\n"
+        "Backup:\n"
+        "/exportlearning -1003710195540 - Exportar aprendizaje a JSON\n\n"
+        "Regla de oro:\n"
+        "Si hay duda, ejecutar /pauseactive antes de tocar nada.\n\n"
+        "Desarrollo:\n"
+        "- Cambiar código en rama develop.\n"
+        "- Commit y push.\n"
+        "- En Raspberry: git pull origin develop y rebuild del bot.\n"
+        "- No commitear nunca el archivo .env."
+    )
+
 @dp.message(Command("adminhelp"), AdminOnly())
 async def cmd_adminhelp(message: Message):
     if not is_admin_user(message.from_user.id if message.from_user else None):
@@ -208,6 +242,7 @@ async def cmd_adminhelp(message: Message):
         "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
         "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
         "/adminhelp - Ver esta ayuda\n\n"
+        "/handover - Guía rápida para admins suplentes\n"
         "/adminbrief - Resumen rápido para admins nuevos\n"
         "Funciones ya simuladas:\n"
         "- Clasificación básica hacia Topics\n"
