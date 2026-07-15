@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, Inli
 
 from app.config.settings import (
     ACTION_MODE,
+    SIMULATION_MODE,
     ACTIVE_DELETE_CHAT_IDS,
     ADMIN_USER_IDS,
     ALLOWED_CHAT_IDS,
@@ -178,10 +179,10 @@ async def cmd_handover(message: Message):
         "Estado actual:\n"
         "- TAIO vive en la Raspberry Pi.\n"
         "- TAIO observa el grupo Airbus y aprende de los admins.\n"
-        "- TAIO puede borrar duplicados exactos y duplicados generales seguros.\n"
-        "- Ejemplo: mismo enlace repetido en General.\n"
+        "- TAIO puede borrar duplicados exactos, duplicados generales seguros y mensajes muy parecidos seguros.\n"
+        "- Ejemplo: mismo enlace repetido o texto largo casi idéntico en General.\n"
         "- TAIO NO mueve mensajes automáticamente.\n"
-        "- TAIO NO borra mensajes parecidos.\n"
+        "- TAIO NO borra mensajes cortos ni conversaciones normales por parecido.\n"
         "- TAIO NO manda avisos privados.\n\n"
         "Comandos diarios:\n"
         "/review 5 - Revisar mensajes de General con botones\n"
@@ -211,51 +212,65 @@ async def cmd_adminhelp(message: Message):
 
     await message.answer(
         "🧭 Comandos de administración de TAIO\n\n"
-       "/myid - Ver tu User ID de Telegram\n"
-        "/status - Ver configuración actual del bot\n"
-        "/readiness - Comprobar si está seguro para grupo grande\n"
-        "/health - Comprobar que bot y base de datos responden\n"
-      "/activestatus - Ver funciones reales activas\n"
-      "/pauseactive - Pausar acciones reales inmediatamente\n"
+
+        "🚨 Emergencia\n"
+        "/pauseactive - Pausar inmediatamente todas las acciones reales\n"
         "/resumeactive - Reactivar acciones reales\n"
-      "/actions CHAT_ID [n] - Ver acciones reales ejecutadas\n"
-     "/learning CHAT_ID [n] - Ver aprendizaje reciente de admins\n"
+        "/activestatus - Ver qué acciones reales están activas\n\n"
+
+        "🩺 Estado y auditoría\n"
+        "/health - Comprobar bot y base de datos\n"
+        "/status - Ver configuración general\n"
+        "/actions CHAT_ID [n] - Ver acciones reales ejecutadas\n"
         "/stats - Ver mensajes y decisiones guardadas\n"
         "/decisionstats - Ver resumen por tipo de decisión\n"
-        "/decisions [n] - Ver últimas decisiones simuladas, máximo 20\n"
-        "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
-       "/general CHAT_ID [n] - Ver mensajes recientes de General\n"
-       "/triage CHAT_ID [n] - Sugerir Topics para mensajes recientes de General\n"
+        "/decisions [n] - Ver últimas decisiones registradas\n\n"
+
+        "🧹 Limpieza automática activa\n"
+        "TAIO puede borrar en General:\n"
+        "- Duplicados exactos del mismo usuario\n"
+        "- Misma URL repetida o mismo texto largo exacto\n"
+        "- Mensajes largos muy parecidos con similitud muy alta\n\n"
+        "TAIO NO mueve mensajes automáticamente a Topics.\n"
+        "TAIO NO manda avisos privados.\n\n"
+
+        "🚦 Revisión diaria\n"
         "/review [n] - Revisar mensajes pendientes de Airbus con botones\n"
-       "/triagecards CHAT_ID [n] - Triage con botones para aprender\n"
+        "/triagecards CHAT_ID [n] - Triage con botones para un chat concreto\n"
+        "/triage CHAT_ID [n] - Ver sugerencias en formato texto\n"
+        "/moves CHAT_ID [n] - Ver sugerencias de movimiento a Topics\n"
+        "/general CHAT_ID [n] - Ver mensajes recientes de General\n\n"
+
+        "🧠 Aprendizaje\n"
+        "/learning CHAT_ID [n] - Ver aprendizaje reciente\n"
+        "/learningstats CHAT_ID - Ver resumen del aprendizaje\n"
         "/learnmove CHAT_ID MESSAGE_ID THREAD_ID - Enseñar movimiento correcto\n"
         "/learnallow CHAT_ID MESSAGE_ID - Enseñar que puede quedarse en General\n"
-     "/exportlearning CHAT_ID - Exportar aprendizaje y Topics a JSON\n"
-      "/learningstats CHAT_ID - Ver resumen del aprendizaje\n"
-     "/unlearn CHAT_ID MESSAGE_ID - Borrar aprendizaje de un mensaje\n"
-       "/teachfromtopic CHAT_ID THREAD_ID [n] - Enseñar ejemplos positivos desde un Topic\n"
+        "/unlearn CHAT_ID MESSAGE_ID - Borrar aprendizaje de un mensaje\n"
+        "/teachfromtopic CHAT_ID THREAD_ID [n] - Enseñar ejemplos positivos desde un Topic\n"
+        "/exportlearning CHAT_ID - Exportar aprendizaje y Topics a JSON\n\n"
+
+        "📌 Topics\n"
+        "/topics CHAT_ID - Ver Topics detectados\n"
+        "/topicsamples CHAT_ID [n] - Ver muestras por Topic\n"
+        "/topicdetail CHAT_ID THREAD_ID [n] - Ver muestras de un Topic concreto\n"
+        "/settopic Nombre - Guardar nombre desde dentro de un Topic\n"
+        "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n\n"
+
+        "🧪 Diagnóstico\n"
+        "/myid - Ver tu User ID de Telegram\n"
         "/whereami - Ver chat_id, thread_id y user_id\n"
         "/chatcheck - Comprobar si este chat está autorizado\n"
-        "/entrycheck - Comprobación final antes de observar un grupo\n"
-        "/topics [CHAT_ID] - Ver Topics detectados\n"
-        "/topicsamples CHAT_ID [n] - Ver muestras por Topic, máximo 5\n"
-        "/topicdetail CHAT_ID THREAD_ID [n] - Ver muestras de un Topic concreto\n"
-        "/settopic Nombre - Guardar el nombre desde dentro de un Topic\n"
-        "/settopicid CHAT_ID THREAD_ID Nombre - Guardar nombre desde privado\n"
-        "/adminhelp - Ver esta ayuda\n\n"
+        "/entrycheck - Comprobación operativa del chat actual\n"
+        "/readiness - Ver preparación general del bot\n\n"
+
+        "🤝 Traspaso\n"
         "/handover - Guía rápida para admins suplentes\n"
-        "/adminbrief - Resumen rápido para admins nuevos\n"
-        "Funciones ya simuladas:\n"
-        "- Clasificación básica hacia Topics\n"
-        "- Detección de duplicados\n"
-        "- Detección de flood\n"
-        "- Detección de enlaces\n"
-        "- Moderación básica de mayúsculas e insultos\n\n"
-        "Estado recomendado para grupo grande:\n"
-        "ACTION_MODE=listen\n"
-        "ENABLE_DELETES=false\n"
-        "ENABLE_REPOSTS=false\n"
-        "ENABLE_PRIVATE_NOTICES=false"
+        "/adminbrief - Resumen operativo corto\n"
+        "/adminhelp - Ver esta ayuda\n\n"
+
+        "Regla de oro:\n"
+        "Si algo parece raro, ejecutar /pauseactive primero y revisar después."
     )
 
 
@@ -265,32 +280,37 @@ async def cmd_adminbrief(message: Message):
         return
 
     await message.answer(
-        "🧭 Resumen rápido de TAIO para admins\n\n"
+        "🧭 Resumen operativo de TAIO\n\n"
         "Estado actual:\n"
-        "- TAIO observa Airbus en modo seguro.\n"
-        "- No borra mensajes.\n"
-        "- No mueve mensajes.\n"
-        "- No escribe avisos privados.\n"
-        "- Solo propone y aprende.\n\n"
-        "Uso recomendado siempre por privado con @taio_airbus_bot.\n\n"
-        "1) Revisar mensajes recientes de General:\n"
-        "/triage -1003710195540 30\n\n"
-        "2) Si TAIO acierta, copiar el comando que aparece bajo:\n"
-        "✅ Confirmar\n\n"
-        "Ejemplo:\n"
-        "/learnmove -1003710195540 22585 9482\n\n"
-        "3) Si TAIO se equivoca, copiar el comando bajo:\n"
-        "❌ Dejar en General\n\n"
-        "Ejemplo:\n"
-        "/learnallow -1003710195540 22585\n\n"
-        "4) Ver Topics conocidos:\n"
-        "/topics -1003710195540\n\n"
-        "5) Ver mensajes recientes de General:\n"
-        "/general -1003710195540 20\n\n"
-        "Importante:\n"
-        "- No hace falta ser admin del grupo de Telegram para enseñar a TAIO ahora mismo.\n"
-        "- No usar comandos dentro del grupo Airbus salvo necesidad.\n"
-        "- Si hay duda, usar /learnallow antes que forzar un Topic incorrecto."
+        "- TAIO vive en la Raspberry Pi.\n"
+        "- TAIO observa el grupo Airbus.\n"
+        "- TAIO aprende de decisiones de admins.\n"
+        "- TAIO limpia duplicados en General.\n"
+        "- TAIO NO mueve mensajes automáticamente a Topics.\n"
+        "- TAIO NO manda avisos privados.\n\n"
+
+        "Acciones reales activas:\n"
+        "1. Borra duplicados exactos del mismo usuario.\n"
+        "2. Borra misma URL repetida o mismo texto largo exacto.\n"
+        "3. Borra mensajes largos muy parecidos con similitud muy alta.\n\n"
+
+        "Uso diario recomendado por privado:\n"
+        "/health\n"
+        "/activestatus\n"
+        "/review 5\n"
+        "/actions -1003710195540 10\n"
+        "/learningstats -1003710195540\n\n"
+
+        "Emergencia:\n"
+        "/pauseactive\n\n"
+        "Reanudar después de revisar:\n"
+        "/resumeactive\n\n"
+
+        "Backup de aprendizaje:\n"
+        "/exportlearning -1003710195540\n\n"
+
+        "Regla de oro:\n"
+        "Si TAIO hace algo raro, pausar primero y mirar /actions después."
     )
 
 @dp.message(Command("status"), AdminOnly())
@@ -380,7 +400,9 @@ async def cmd_activestatus(message: Message):
         f"Chats permitidos: {allowed_chats}",
         "",
         "Funciones reales:",
-        f"- Borrar duplicados exactos: {'✅ activo' if real_delete_enabled else '❌ inactivo'}",
+        f"- Borrar duplicados exactos del mismo usuario: {'✅ activo' if real_delete_enabled else '❌ inactivo'}",
+        f"- Borrar duplicados generales seguros: {'✅ activo' if real_delete_enabled else '❌ inactivo'}",
+        f"- Borrar mensajes muy parecidos seguros: {'✅ activo' if real_delete_enabled else '❌ inactivo'}",
         f"- Mover mensajes a Topics: {'✅ activo' if ENABLE_REPOSTS else '❌ inactivo'}",
         f"- Avisos privados: {'✅ activo' if ENABLE_PRIVATE_NOTICES else '❌ inactivo'}",
         f"- Avisos breves en grupo: {'✅ activo' if ENABLE_GROUP_NOTICES else '❌ inactivo'}",
